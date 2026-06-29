@@ -3,7 +3,7 @@ import axios from "axios";
 // Axios instance pointing to Express backend
 // Falls back to mock data when server is not running
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

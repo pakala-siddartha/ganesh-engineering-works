@@ -10,7 +10,11 @@ const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: ["http://localhost:5173", "http://localhost:3000"] }));
+const allowedOrigins = process.env.CLIENT_URL 
+  ? process.env.CLIENT_URL.split(",") 
+  : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
