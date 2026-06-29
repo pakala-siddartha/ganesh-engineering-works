@@ -1,16 +1,11 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Factory, ShoppingCart, Package, Layers, BarChart3, ArrowRight } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { MetricCard } from "../components/ui/Card";
 import { ROUTES } from "../constants/routes";
-
-const mockMetrics = {
-  todayProduction: 56,
-  todaySales: 42,
-  stock: 628,
-  cementBags: 90,
-};
+import api from "../services/api";
 
 const links = [
   { label: "GHMC Production", sub: "Entry work", href: ROUTES.GHMC_PRODUCTION, icon: Factory, featured: true },
@@ -21,15 +16,46 @@ const links = [
 ];
 
 export default function GhmcDashboardPage() {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: prodData } = useQuery({
+    queryKey: ["production", "ghmc"],
+    queryFn: () => api.get("/production?type=ghmc"),
+  });
+  const { data: salesData } = useQuery({
+    queryKey: ["sales", "ghmc"],
+    queryFn: () => api.get("/sales?type=ghmc"),
+  });
+  const { data: cementData } = useQuery({
+    queryKey: ["cement", "ghmc"],
+    queryFn: () => api.get("/cement?type=ghmc"),
+  });
+
+  const todayProduction = (prodData?.data ?? [])
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + (e.total_quantity || 0), 0);
+
+  const todaySales = (salesData?.data ?? [])
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + (e.total_quantity || 0), 0);
+
+  const totalProduced = (prodData?.data ?? []).reduce((s, e) => s + (e.total_quantity || 0), 0);
+  const totalSold = (salesData?.data ?? []).reduce((s, e) => s + (e.total_quantity || 0), 0);
+  const stock = totalProduced - totalSold;
+
+  const cementBags = (cementData?.data ?? []).reduce((s, e) => {
+    return e.direction === "in" ? s + e.quantity : s - e.quantity;
+  }, 0);
+
   return (
     <Layout>
       <Header title="GHMC Operations Dashboard" subtitle="GHMC Work" />
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard label="Today Production" value={mockMetrics.todayProduction} sub="GHMC produced" icon={Factory} color="violet" />
-          <MetricCard label="Today Sales" value={mockMetrics.todaySales} sub="GHMC sold" icon={ShoppingCart} color="emerald" />
-          <MetricCard label="Stock" value={mockMetrics.stock} sub="GHMC available" icon={Package} color="sky" />
-          <MetricCard label="Cement" value={mockMetrics.cementBags} sub="GHMC bags" icon={Layers} color="amber" />
+          <MetricCard label="Today Production" value={todayProduction} sub="GHMC produced" icon={Factory} color="violet" />
+          <MetricCard label="Today Sales" value={todaySales} sub="GHMC sold" icon={ShoppingCart} color="emerald" />
+          <MetricCard label="Stock" value={stock} sub="GHMC available" icon={Package} color="sky" />
+          <MetricCard label="Cement" value={cementBags} sub="GHMC bags" icon={Layers} color="amber" />
         </div>
 
         <div>

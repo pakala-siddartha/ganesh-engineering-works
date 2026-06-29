@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
@@ -10,105 +11,65 @@ import { Table, Badge } from "../components/ui/Table";
 import { ConfirmDialog } from "../components/ui/Modal";
 import { cn } from "../lib/utils";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
-import { downloadCsv } from "../utils/csvUtils";
+import api from "../services/api";
 
-// Mock history entries
-const MOCK_CEMENT = [
-  { id: "cem-001", date: "2026-06-29", quantity: 50, direction: "in" },
-  { id: "cem-002", date: "2026-06-29", quantity: 12, direction: "out" },
-  { id: "cem-003", date: "2026-06-28", quantity: 80, direction: "in" },
-  { id: "cem-004", date: "2026-06-28", quantity: 20, direction: "out" },
-];
-
-function ModernDatePicker({ value, onChange }) {
+// ── Date Picker (matches Production/Sales pages) ──────────────────────────────
+function DatePicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(value ? new Date(value) : new Date());
+  const [viewDate, setViewDate] = useState(value ? new Date(value + "T00:00:00") : new Date());
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayIndex = new Date(year, month, 1).getDay();
+  const firstDay = new Date(year, month, 1).getDay();
+  const allDays = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
-  const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  const handleDaySelect = (day) => {
-    const formattedMonth = String(month + 1).padStart(2, '0');
-    const formattedDay = String(day).padStart(2, '0');
-    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
-    onChange(dateStr);
+  const pick = (day) => {
+    onChange(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
     setIsOpen(false);
   };
 
-  const blanks = Array(firstDayIndex).fill(null);
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const allDays = [...blanks, ...days];
+  const selDay = value ? parseInt(value.split("-")[2]) : null;
+  const selMonth = value ? parseInt(value.split("-")[1]) - 1 : null;
+  const selYear = value ? parseInt(value.split("-")[0]) : null;
 
   return (
     <div className="relative w-full">
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative flex items-center cursor-pointer select-none"
-      >
+      <div onClick={() => setIsOpen(!isOpen)} className="relative flex items-center cursor-pointer select-none">
         <input
-          type="text"
-          readOnly
-          value={formatDisplayDate(value)}
-          className="w-full bg-[#f2f2f7] border border-black/20 rounded-2xl px-4 py-3 pl-11 text-sm text-[#1d1d1f] font-semibold focus:outline-none focus:bg-white focus:border-black/60 focus:ring-4 focus:ring-black/5 transition-all duration-300 ease-out cursor-pointer hover:border-slate-300"
+          type="text" readOnly value={formatDisplayDate(value)}
+          className="w-full bg-[#f5f5f7] border border-black/10 rounded-2xl px-4 py-3 pl-11 text-sm font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 transition-all duration-200 cursor-pointer hover:border-black/20"
         />
-        <span className="absolute left-4 pointer-events-none text-slate-500">
-          <Calendar size={16} />
-        </span>
+        <Calendar size={16} className="absolute left-4 text-orange-500 pointer-events-none" />
       </div>
-
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white border border-black/10 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+          <div className="absolute top-full mt-2 left-0 z-50 bg-white border border-black/8 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer">
                 <ChevronLeft size={16} />
               </button>
-              <span className="text-sm font-extrabold text-slate-800">
-                {monthNames[month]} {year}
-              </span>
-              <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+              <span className="text-sm font-extrabold text-gray-800">{monthNames[month]} {year}</span>
+              <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer">
                 <ChevronRight size={16} />
               </button>
             </div>
-
-            <div className="grid grid-cols-7 gap-1 text-center mb-1">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <span key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{d}</span>
+            <div className="grid grid-cols-7 gap-1 mb-1 text-center">
+              {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
+                <span key={d} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{d}</span>
               ))}
             </div>
-
             <div className="grid grid-cols-7 gap-1">
               {allDays.map((day, idx) => {
-                if (day === null) return <span key={`blank-${idx}`} />;
-                const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
+                if (!day) return <span key={`b-${idx}`} />;
+                const isSel = day === selDay && month === selMonth && year === selYear;
                 return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => handleDaySelect(day)}
-                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                      isSelected
-                        ? "bg-black text-white"
-                        : "hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
+                  <button key={day} type="button" onClick={() => pick(day)}
+                    className={`py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+                      isSel ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"
+                    }`}>
                     {day}
                   </button>
                 );
@@ -122,21 +83,49 @@ function ModernDatePicker({ value, onChange }) {
 }
 
 function computeStock(entries) {
-  return entries.reduce((sum, e) => {
-    return e.direction === "in" ? sum + e.quantity : sum - e.quantity;
-  }, 0);
+  return entries.reduce((sum, e) => e.direction === "in" ? sum + e.quantity : sum - e.quantity, 0);
 }
 
 export default function CementPage({ isGhmc = false }) {
+  const type = isGhmc ? "ghmc" : "regular";
+  const qc = useQueryClient();
+
   const [date, setDate] = useState(formatDateInput());
   const [entryQty, setEntryQty] = useState("");
   const [usedQty, setUsedQty] = useState("");
-  const [entries, setEntries] = useState(MOCK_CEMENT);
-  const [confirm, setConfirm] = useState(null); // { direction, qty }
+  const [confirm, setConfirm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [saving, setSaving] = useState(false);
 
+  const { data: entriesData } = useQuery({
+    queryKey: ["cement", type],
+    queryFn: () => api.get(`/cement?type=${type}`),
+  });
+  const entries = entriesData?.data ?? [];
   const currentStock = computeStock(entries);
+
+  const createMutation = useMutation({
+    mutationFn: (entry) => api.post("/cement", entry),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ["cement", type] });
+      toast.success(variables.direction === "in"
+        ? `Added ${variables.quantity} bags to stock`
+        : `Recorded ${variables.quantity} bags consumed`);
+      if (variables.direction === "in") setEntryQty("");
+      else setUsedQty("");
+      setConfirm(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/cement/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cement", type] });
+      toast.success("Entry removed");
+      setConfirmDelete(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   function handleAdd() {
     if (!date) { toast.error("Select a date"); return; }
@@ -153,28 +142,23 @@ export default function CementPage({ isGhmc = false }) {
     setConfirm({ direction: "out", qty, label: "Use Cement" });
   }
 
-  async function handleConfirm() {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
-    const entry = {
-      id: `cem-${Date.now()}`,
-      date,
-      quantity: confirm.qty,
-      direction: confirm.direction,
-    };
-    setEntries((prev) => [entry, ...prev]);
-    toast.success(confirm.direction === "in" ? `Added ${confirm.qty} bags` : `Used ${confirm.qty} bags`);
-    if (confirm.direction === "in") setEntryQty("");
-    else setUsedQty("");
-    setConfirm(null);
-    setSaving(false);
+  function handleConfirm() {
+    createMutation.mutate({ date, type, direction: confirm.direction, quantity: confirm.qty });
   }
 
+  const stockColor = currentStock <= 20
+    ? { text: "text-red-500", border: "border-red-200", bg: "bg-red-50/50", badge: "error" }
+    : currentStock <= 50
+    ? { text: "text-amber-500", border: "border-amber-200", bg: "bg-amber-50/50", badge: "warning" }
+    : { text: "text-emerald-600", border: "border-emerald-200", bg: "bg-emerald-50/30", badge: "success" };
+
   const columns = [
-    { key: "date", label: "Date", render: (r) => formatDisplayDate(r.date) },
     {
-      key: "direction",
-      label: "Movement",
+      key: "date", label: "Date",
+      render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span>
+    },
+    {
+      key: "direction", label: "Movement",
       render: (r) => (
         <Badge variant={r.direction === "in" ? "success" : "error"}>
           {r.direction === "in" ? "Received" : "Consumed"}
@@ -182,26 +166,21 @@ export default function CementPage({ isGhmc = false }) {
       ),
     },
     {
-      key: "quantity",
-      label: "Quantity",
+      key: "quantity", label: "Quantity",
       render: (r) => (
-        <span className={cn("font-bold text-base", r.direction === "in" ? "text-emerald-600" : "text-red-500")}>
-          {r.direction === "in" ? "+" : "-"}{r.quantity} bags
+        <span className={cn("font-extrabold text-sm", r.direction === "in" ? "text-emerald-600" : "text-red-500")}>
+          {r.direction === "in" ? "+" : "−"}{r.quantity} bags
         </span>
       ),
     },
     {
-      key: "actions",
-      label: "",
-      className: "text-center",
-      cellClassName: "text-center",
+      key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
       render: (r) => (
         <button
           onClick={() => setConfirmDelete(r)}
-          className="flex items-center gap-1.5 px-3 py-1.5 mx-auto rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 font-bold text-xs transition-all duration-200 cursor-pointer"
         >
-          <Trash2 size={12} className="stroke-[2.5]" />
-          <span>Delete</span>
+          <Trash2 size={11} className="stroke-[2.5]" /> Delete
         </button>
       ),
     },
@@ -214,40 +193,35 @@ export default function CementPage({ isGhmc = false }) {
         subtitle={isGhmc ? "GHMC Work" : "Daily Operations"}
       />
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-4xl mx-auto w-full">
-        {/* Stock Status Indicator */}
-        <div className={cn(
-          "rounded-3xl border p-6 text-center transition-all bg-white",
-          currentStock <= 20
-            ? "border-red-200 shadow-md shadow-red-500/5 bg-red-50/5"
-            : currentStock <= 50
-            ? "border-amber-200 shadow-md shadow-amber-500/5 bg-amber-50/5"
-            : "border-emerald-200 shadow-md shadow-emerald-500/5 bg-emerald-50/5"
-        )}>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Available Cement</p>
-          <p className={cn(
-            "text-6xl font-black tracking-tight",
-            currentStock <= 20 ? "text-red-500" : currentStock <= 50 ? "text-amber-500" : "text-emerald-600"
-          )}>
+
+        {/* ── Stock status ───────────────────────────────────────────── */}
+        <div className={cn("rounded-3xl border-2 p-6 text-center bg-white transition-all", stockColor.border, stockColor.bg)}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Available Cement Stock</p>
+          <p className={cn("text-7xl font-black tracking-tight leading-none", stockColor.text)}>
             {currentStock}
           </p>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Total Bags</p>
-          {currentStock <= 20 && <Badge variant="error" className="mt-3.5">Low Cement Stock</Badge>}
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-2">Total Bags</p>
+          {currentStock <= 20 && (
+            <div className="mt-4 flex justify-center">
+              <Badge variant="error">⚠ Low Stock — Reorder Soon</Badge>
+            </div>
+          )}
         </div>
 
-        {/* Action controls */}
+        {/* ── Action cards ───────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Add Cement Card */}
+          {/* Add Cement */}
           <Card>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-emerald-50">
-                <Plus size={18} className="text-emerald-600" />
+            <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                <Plus size={16} className="text-emerald-600" />
               </div>
-              <h3 className="font-extrabold text-[#1d1d1f] text-sm uppercase tracking-wider">Cement Stock In</h3>
+              <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Cement Stock In</h3>
             </div>
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-bold text-gray-550 uppercase tracking-wider px-1">Date</span>
-                <ModernDatePicker value={date} onChange={setDate} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Date</label>
+                <DatePicker value={date} onChange={setDate} />
               </div>
               <Input
                 type="number"
@@ -257,24 +231,24 @@ export default function CementPage({ isGhmc = false }) {
                 value={entryQty}
                 onChange={(e) => setEntryQty(e.target.value)}
               />
-              <Button variant="success" className="w-full py-3 justify-center" onClick={handleAdd}>
+              <Button variant="success" className="w-full py-3 justify-center" onClick={handleAdd} loading={createMutation.isPending && confirm?.direction === "in"}>
                 <Plus size={16} /> Add Cement Bags
               </Button>
             </div>
           </Card>
 
-          {/* Consumed Cement Card */}
+          {/* Use Cement */}
           <Card>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-red-50">
-                <Minus size={18} className="text-red-500" />
+            <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
+              <div className="p-2 rounded-xl bg-red-50 border border-red-100">
+                <Minus size={16} className="text-red-500" />
               </div>
-              <h3 className="font-extrabold text-[#1d1d1f] text-sm uppercase tracking-wider">Cement Consumed</h3>
+              <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Cement Consumed</h3>
             </div>
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-bold text-gray-550 uppercase tracking-wider px-1">Date</span>
-                <ModernDatePicker value={date} onChange={setDate} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">Date</label>
+                <DatePicker value={date} onChange={setDate} />
               </div>
               <Input
                 type="number"
@@ -285,34 +259,50 @@ export default function CementPage({ isGhmc = false }) {
                 value={usedQty}
                 onChange={(e) => setUsedQty(e.target.value)}
               />
-              <Button variant="danger" className="w-full py-3 justify-center" onClick={handleRemove}>
+              <Button variant="danger" className="w-full py-3 justify-center" onClick={handleRemove} loading={createMutation.isPending && confirm?.direction === "out"}>
                 <Minus size={16} /> Use Cement Bags
               </Button>
             </div>
           </Card>
         </div>
 
-        {/* History movements */}
+        {/* ── Ledger history ─────────────────────────────────────────── */}
         <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <History size={18} className="text-orange-500" />
-            <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Ledger history</h3>
-            <Badge variant="warning">{entries.length} Entries</Badge>
+          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
+            <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
+              <History size={16} className="text-orange-500" />
+            </div>
+            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Ledger History</h3>
+            <Badge variant="orange">{entries.length}</Badge>
           </div>
           <Table columns={columns} data={entries} emptyMessage="No cement movements yet" />
         </Card>
       </div>
 
       <ConfirmDialog
-        isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleConfirm}
-        title={confirm?.label || ""} confirmLabel="Confirm" loading={saving}
+        isOpen={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={handleConfirm}
+        title={confirm?.label || ""}
+        confirmLabel="Confirm"
+        loading={createMutation.isPending}
         confirmVariant={confirm?.direction === "in" ? "success" : "danger"}
-        details={confirm ? [`Date: ${formatDisplayDate(date)}`, `Quantity: ${confirm.qty} bags`, `Expected Balance: ${confirm.direction === "in" ? currentStock + confirm.qty : currentStock - confirm.qty} bags`] : []}
+        details={confirm ? [
+          `Date: ${formatDisplayDate(date)}`,
+          `Quantity: ${confirm.qty} bags`,
+          `Expected Balance: ${confirm.direction === "in" ? currentStock + confirm.qty : currentStock - confirm.qty} bags`,
+        ] : []}
       />
+
       <ConfirmDialog
-        isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)}
-        onConfirm={async () => { await new Promise(r => setTimeout(r, 300)); setEntries(e => e.filter(x => x.id !== confirmDelete.id)); toast.success("Entry removed"); setConfirmDelete(null); }}
-        title="Delete Cement Ledger Record" message="Are you sure you want to delete this cement record?" confirmLabel="Delete" confirmVariant="danger"
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
+        title="Delete Cement Record"
+        message="Are you sure you want to delete this cement record?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleteMutation.isPending}
       />
     </Layout>
   );

@@ -1,139 +1,76 @@
 import { useState } from "react";
-import { Save, Download, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
 import { Table, Badge } from "../components/ui/Table";
 import { ConfirmDialog } from "../components/ui/Modal";
 import { ProductGrid } from "../components/forms/ProductGrid";
 import { DAILY_PRODUCTS } from "../constants/products";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
-import { downloadCsv } from "../utils/csvUtils";
+import api from "../services/api";
 
-// Mock history entries
-const MOCK_HISTORY = [
-  {
-    id: "prod-001",
-    date: "2026-06-29",
-    totalQuantity: 124,
-    items: [
-      { product: "MD10-500MM-Cover", quantity: 30 },
-      { product: "MD10-500MM-Frame", quantity: 30 },
-      { product: "HD20-500MM-Cover", quantity: 32 },
-      { product: "HD20-500MM-Frame", quantity: 32 },
-    ],
-  },
-  {
-    id: "prod-002",
-    date: "2026-06-28",
-    totalQuantity: 108,
-    items: [
-      { product: "HD20-560MM-Cover", quantity: 28 },
-      { product: "HD20-560MM-Frame", quantity: 28 },
-      { product: "EHD35-560MM-Cover", quantity: 26 },
-      { product: "EHD35-560MM-Frame", quantity: 26 },
-    ],
-  },
-  {
-    id: "prod-003",
-    date: "2026-06-27",
-    totalQuantity: 96,
-    items: [{ product: "EHD35-600X600MM-Cover", quantity: 48 }, { product: "EHD35-600X600MM-Frame", quantity: 48 }],
-  },
-];
-
-function ModernDatePicker({ value, onChange }) {
+// ── Shared date picker ───────────────────────────────────────────────────────
+function DatePicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(value ? new Date(value) : new Date());
+  const [viewDate, setViewDate] = useState(value ? new Date(value + "T00:00:00") : new Date());
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayIndex = new Date(year, month, 1).getDay();
+  const firstDay = new Date(year, month, 1).getDay();
+  const allDays = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
-  const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  const handleDaySelect = (day) => {
-    const formattedMonth = String(month + 1).padStart(2, '0');
-    const formattedDay = String(day).padStart(2, '0');
-    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
-    onChange(dateStr);
+  const pick = (day) => {
+    const d = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    onChange(d);
     setIsOpen(false);
   };
 
-  const blanks = Array(firstDayIndex).fill(null);
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const allDays = [...blanks, ...days];
+  const selectedDay = value ? parseInt(value.split("-")[2]) : null;
+  const selectedMonth = value ? parseInt(value.split("-")[1]) - 1 : null;
+  const selectedYear = value ? parseInt(value.split("-")[0]) : null;
 
   return (
     <div className="relative w-full">
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative flex items-center cursor-pointer select-none"
-      >
+      <div onClick={() => setIsOpen(!isOpen)} className="relative flex items-center cursor-pointer select-none">
         <input
-          type="text"
-          readOnly
-          value={formatDisplayDate(value)}
-          className="w-full bg-[#f2f2f7] border border-black/20 rounded-2xl px-4 py-3 pl-11 text-sm text-[#1d1d1f] font-semibold focus:outline-none focus:bg-white focus:border-black/60 focus:ring-4 focus:ring-black/5 transition-all duration-300 ease-out cursor-pointer hover:border-slate-300"
+          type="text" readOnly value={formatDisplayDate(value)}
+          className="w-full bg-[#f5f5f7] border border-black/10 rounded-2xl px-4 py-3 pl-11 text-sm font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 transition-all duration-200 cursor-pointer hover:border-black/20"
         />
-        <span className="absolute left-4 pointer-events-none text-slate-500">
-          <Calendar size={16} />
-        </span>
+        <Calendar size={16} className="absolute left-4 text-orange-500 pointer-events-none" />
       </div>
-
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white border border-black/10 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+          <div className="absolute top-full mt-2 left-0 z-50 bg-white border border-black/8 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer">
                 <ChevronLeft size={16} />
               </button>
-              <span className="text-sm font-extrabold text-slate-800">
-                {monthNames[month]} {year}
-              </span>
-              <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+              <span className="text-sm font-extrabold text-gray-800">{monthNames[month]} {year}</span>
+              <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer">
                 <ChevronRight size={16} />
               </button>
             </div>
-
-            <div className="grid grid-cols-7 gap-1 text-center mb-1">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <span key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{d}</span>
+            <div className="grid grid-cols-7 gap-1 mb-1 text-center">
+              {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
+                <span key={d} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{d}</span>
               ))}
             </div>
-
             <div className="grid grid-cols-7 gap-1">
               {allDays.map((day, idx) => {
-                if (day === null) return <span key={`blank-${idx}`} />;
-                const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
+                if (!day) return <span key={`b-${idx}`} />;
+                const isSelected = day === selectedDay && month === selectedMonth && year === selectedYear;
                 return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => handleDaySelect(day)}
-                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                      isSelected
-                        ? "bg-black text-white"
-                        : "hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
+                  <button key={day} type="button" onClick={() => pick(day)}
+                    className={`py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
+                      isSelected ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"
+                    }`}>
                     {day}
                   </button>
                 );
@@ -155,18 +92,62 @@ function initQuantities(products) {
 }
 
 export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUCTS }) {
+  const type = isGhmc ? "ghmc" : "regular";
+  const qc = useQueryClient();
+
   const [date, setDate] = useState(formatDateInput());
   const [quantities, setQuantities] = useState(initQuantities(products));
-  const [history, setHistory] = useState(MOCK_HISTORY);
   const [editingEntry, setEditingEntry] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   const total = Object.values(quantities).reduce((s, v) => s + (Number(v) || 0), 0);
 
-  function handleQtyChange(key, value) {
-    setQuantities((prev) => ({ ...prev, [key]: value }));
+  const { data: historyData } = useQuery({
+    queryKey: ["production", type],
+    queryFn: () => api.get(`/production?type=${type}`),
+  });
+  const history = historyData?.data ?? [];
+
+  const createMutation = useMutation({
+    mutationFn: (entry) => api.post("/production", entry),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["production", type] });
+      toast.success("Production saved successfully");
+      setQuantities(initQuantities(products));
+      setConfirmSave(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, entry }) => api.put(`/production/${id}`, entry),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["production", type] });
+      toast.success("Entry updated successfully");
+      setQuantities(initQuantities(products));
+      setEditingEntry(null);
+      setConfirmSave(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/production/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["production", type] });
+      toast.success("Entry deleted");
+      setConfirmDelete(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const saving = createMutation.isPending || updateMutation.isPending;
+
+  function handleSaveClick() {
+    if (!date) { toast.error("Select a date"); return; }
+    if (total <= 0) { toast.error("Enter at least one quantity"); return; }
+    setConfirmSave(true);
   }
 
   function buildDetails() {
@@ -179,44 +160,26 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     return lines;
   }
 
-  function handleSaveClick() {
-    if (!date) { toast.error("Select a date"); return; }
-    if (total <= 0) { toast.error("Enter at least one quantity"); return; }
-    setConfirmSave(true);
-  }
-
-  async function handleConfirmSave() {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 600)); // Simulate API
+  function handleConfirmSave() {
     const entry = {
-      id: editingEntry ? editingEntry.id : `prod-${Date.now()}`,
-      date,
-      totalQuantity: total,
+      date, type, total_quantity: total,
       items: products.flatMap((p) => [
         { product: p.cover, quantity: Number(quantities[p.coverKey]) || 0 },
         { product: p.frame, quantity: Number(quantities[p.frameKey]) || 0 },
       ]).filter((i) => i.quantity > 0),
     };
-
     if (editingEntry) {
-      setHistory((h) => h.map((e) => (e.id === entry.id ? entry : e)));
-      toast.success("Entry updated successfully");
+      updateMutation.mutate({ id: editingEntry.id, entry });
     } else {
-      setHistory((h) => [entry, ...h]);
-      toast.success("Production saved successfully");
+      createMutation.mutate(entry);
     }
-
-    setQuantities(initQuantities(products));
-    setEditingEntry(null);
-    setConfirmSave(false);
-    setSaving(false);
   }
 
   function handleEdit(entry) {
     setEditingEntry(entry);
     setDate(entry.date);
     const q = initQuantities(products);
-    entry.items.forEach((item) => {
+    (entry.items || []).forEach((item) => {
       const p = products.find((p) => p.cover === item.product || p.frame === item.product);
       if (p) {
         if (p.cover === item.product) q[p.coverKey] = item.quantity;
@@ -227,41 +190,31 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function handleCancelEdit() {
-    setEditingEntry(null);
-    setQuantities(initQuantities(products));
-  }
-
-  async function handleConfirmDelete() {
-    await new Promise((r) => setTimeout(r, 400));
-    setHistory((h) => h.filter((e) => e.id !== confirmDelete.id));
-    toast.success("Entry deleted");
-    setConfirmDelete(null);
-  }
-
   const columns = [
-    { key: "date", label: "Date", render: (r) => formatDisplayDate(r.date) },
-    { key: "totalQuantity", label: "Total Qty", render: (r) => <span className="font-extrabold text-slate-800">{r.totalQuantity} pcs</span> },
+    { key: "date", label: "Date", render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span> },
     {
-      key: "actions",
-      label: "Actions",
-      className: "text-center",
-      cellClassName: "text-center",
+      key: "total_quantity", label: "Total Qty",
       render: (r) => (
-        <div className="flex items-center justify-center gap-2">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 font-extrabold text-xs border border-orange-200">
+          {r.total_quantity ?? r.totalQuantity} pcs
+        </span>
+      )
+    },
+    {
+      key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
+      render: (r) => (
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => handleEdit(r)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 font-bold text-xs transition-all duration-200 cursor-pointer"
           >
-            <Pencil size={12} className="stroke-[2.5]" />
-            <span>Edit</span>
+            <Pencil size={11} className="stroke-[2.5]" /> Edit
           </button>
           <button
             onClick={() => setConfirmDelete(r)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 font-bold text-xs transition-all duration-200 cursor-pointer"
           >
-            <Trash2 size={12} className="stroke-[2.5]" />
-            <span>Delete</span>
+            <Trash2 size={11} className="stroke-[2.5]" /> Delete
           </button>
         </div>
       ),
@@ -275,77 +228,68 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
         subtitle={isGhmc ? "GHMC Work" : "Daily Operations"}
       />
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-4xl mx-auto w-full">
-        {/* Entry Card */}
+
+        {/* ── Entry Card ────────────────────────────────────────────── */}
         <Card>
+          {/* Edit mode banner */}
           {editingEntry && (
-            <div className="flex items-center justify-between mb-5 p-3.5 bg-amber-50 border border-amber-500/10 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="flex items-center gap-2 text-amber-600">
-                <Pencil size={16} />
+            <div className="flex items-center justify-between mb-5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
+              <div className="flex items-center gap-2 text-amber-700">
+                <Pencil size={14} />
                 <span className="text-xs font-bold uppercase tracking-wider">
-                  Editing production from {formatDisplayDate(editingEntry.date)}
+                  Editing entry — {formatDisplayDate(editingEntry.date)}
                 </span>
               </div>
-              <button onClick={handleCancelEdit} className="text-amber-500 hover:text-amber-700">
+              <button
+                onClick={() => { setEditingEntry(null); setQuantities(initQuantities(products)); }}
+                className="text-amber-400 hover:text-amber-700 transition-colors cursor-pointer"
+              >
                 <X size={16} />
               </button>
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <h3 className="text-base font-extrabold text-gray-800 tracking-tight">
-              {editingEntry ? "Update Production" : "New Production"}
-            </h3>
-            <div className="w-full sm:w-56">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 pl-1">
-                Date
+          {/* Date picker row */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 pb-5 border-b border-black/5">
+            <div className="w-full sm:w-52">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                Production Date
               </label>
-              <ModernDatePicker value={date} onChange={setDate} />
+              <DatePicker value={date} onChange={setDate} />
             </div>
           </div>
 
-          <ProductGrid
-            products={products}
-            quantities={quantities}
-            onChange={handleQtyChange}
-          />
+          {/* Product grid */}
+          <ProductGrid products={products} quantities={quantities} onChange={(k, v) => setQuantities(p => ({ ...p, [k]: v }))} />
 
-          <div className="flex flex-col items-center gap-3 mt-6 pt-6 border-t border-black/5">
+          {/* Save button */}
+          <div className="mt-6 pt-5 border-t border-black/5 flex justify-center">
             <Button
-              variant="blue"
-              size="md"
+              variant="primary"
+              size="lg"
               onClick={handleSaveClick}
-              className="w-full sm:w-auto sm:px-12 py-2.5 justify-center text-sm shadow-sm"
+              loading={saving}
+              className="w-full sm:w-auto sm:min-w-[200px] justify-center"
             >
               <Save size={16} />
               {editingEntry ? "Update Entry" : "Save Production"}
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full sm:w-auto sm:px-10 py-2 justify-center text-xs text-slate-500"
-              onClick={() => downloadCsv(
-                history.map((e) => ({ Date: e.date, "Total Qty": e.totalQuantity })),
-                "production.csv"
-              )}
-            >
-              <Download size={14} />
-              Export CSV
-            </Button>
           </div>
         </Card>
 
-        {/* History */}
+        {/* ── History Card ──────────────────────────────────────────── */}
         <Card>
-          <div className="flex items-center gap-2 mb-5">
-            <History size={18} className="text-orange-500" />
-            <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Recent Entries</h3>
+          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
+            <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
+              <History size={16} className="text-orange-500" />
+            </div>
+            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Recent Entries</h3>
             <Badge variant="orange">{history.length}</Badge>
           </div>
           <Table columns={columns} data={history} emptyMessage="No production entries yet" />
         </Card>
       </div>
 
-      {/* Confirm Save Dialog */}
       <ConfirmDialog
         isOpen={confirmSave}
         onClose={() => setConfirmSave(false)}
@@ -356,16 +300,16 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
         details={buildDetails()}
       />
 
-      {/* Confirm Delete Dialog */}
       <ConfirmDialog
         isOpen={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => deleteMutation.mutate(confirmDelete.id)}
         title="Delete Entry"
         message="Are you sure you want to delete this entry? This cannot be undone."
         confirmLabel="Delete"
         confirmVariant="danger"
-        details={confirmDelete ? [`Date: ${formatDisplayDate(confirmDelete.date)}`, `Total: ${confirmDelete.totalQuantity} pieces`] : []}
+        loading={deleteMutation.isPending}
+        details={confirmDelete ? [`Date: ${formatDisplayDate(confirmDelete.date)}`, `Total: ${confirmDelete.total_quantity ?? confirmDelete.totalQuantity} pieces`] : []}
       />
     </Layout>
   );

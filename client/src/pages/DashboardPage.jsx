@@ -1,5 +1,6 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Factory,
   ShoppingCart,
@@ -13,14 +14,7 @@ import { Layout } from "../components/layout/Layout";
 import { MetricCard } from "../components/ui/Card";
 import { ROUTES } from "../constants/routes";
 import ganeshImage from "../assets/ganesh_image.jpeg";
-
-// ─── Mock data (replace with TanStack Query + API when Supabase is ready) ───
-const mockDailyMetrics = {
-  todayProduction: 124,
-  todaySales: 98,
-  stock: 1842,
-  cementBags: 340,
-};
+import api from "../services/api";
 
 const dailyQuickLinks = [
   { label: "Production Entry", sub: "Covers and frames", href: ROUTES.PRODUCTION, icon: Factory },
@@ -40,7 +34,7 @@ function QuickLinkCard({ label, sub, href, icon: Icon }) {
     setIsFlipped(true);
     setTimeout(() => {
       navigate(href);
-    }, 450); // 450ms animation duration
+    }, 450);
   };
 
   return (
@@ -79,6 +73,41 @@ function QuickLinkCard({ label, sub, href, icon: Icon }) {
 }
 
 export default function DashboardPage() {
+  const today = new Date().toISOString().split("T")[0];
+
+  // Fetch today's production, sales, and cement from Supabase
+  const { data: prodData } = useQuery({
+    queryKey: ["production", "regular"],
+    queryFn: () => api.get("/production?type=regular"),
+  });
+  const { data: salesData } = useQuery({
+    queryKey: ["sales", "regular"],
+    queryFn: () => api.get("/sales?type=regular"),
+  });
+  const { data: cementData } = useQuery({
+    queryKey: ["cement", "regular"],
+    queryFn: () => api.get("/cement?type=regular"),
+  });
+
+  // Today totals
+  const todayProduction = (prodData?.data ?? [])
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + (e.total_quantity || 0), 0);
+
+  const todaySales = (salesData?.data ?? [])
+    .filter((e) => e.date === today)
+    .reduce((s, e) => s + (e.total_quantity || 0), 0);
+
+  // Total stock = all production - all sales
+  const totalProduced = (prodData?.data ?? []).reduce((s, e) => s + (e.total_quantity || 0), 0);
+  const totalSold = (salesData?.data ?? []).reduce((s, e) => s + (e.total_quantity || 0), 0);
+  const stock = totalProduced - totalSold;
+
+  // Cement current stock = in - out
+  const cementBags = (cementData?.data ?? []).reduce((s, e) => {
+    return e.direction === "in" ? s + e.quantity : s - e.quantity;
+  }, 0);
+
   return (
     <Layout>
       {/* Mobile Branding Header */}
@@ -100,28 +129,28 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               label="Today Production"
-              value={mockDailyMetrics.todayProduction}
+              value={todayProduction}
               sub="Produced today"
               icon={Factory}
               color="orange"
             />
             <MetricCard
               label="Today Sales"
-              value={mockDailyMetrics.todaySales}
+              value={todaySales}
               sub="Sold today"
               icon={ShoppingCart}
               color="emerald"
             />
             <MetricCard
               label="Stock"
-              value={mockDailyMetrics.stock}
+              value={stock}
               sub="Available now"
               icon={Package}
               color="sky"
             />
             <MetricCard
               label="Cement"
-              value={mockDailyMetrics.cementBags}
+              value={cementBags}
               sub="Bags in stock"
               icon={Layers}
               color="amber"

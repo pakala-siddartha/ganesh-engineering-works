@@ -1,26 +1,43 @@
-import { useState } from "react";
-import { RefreshCw, Download, Package } from "lucide-react";
-import toast from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
+import { Package } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Table";
 import { cn } from "../lib/utils";
 import { DAILY_PRODUCTS } from "../constants/products";
 import { downloadCsv } from "../utils/csvUtils";
+import { Button } from "../components/ui/Button";
+import { Download, RefreshCw } from "lucide-react";
+import api from "../services/api";
 
-// Mock data generator
-const generateMockStock = (products) =>
-  products.map((p) => ({
+// ── Build per-product stock from production and sales entry items ──────────
+function buildStockFromEntries(products, prodEntries, salesEntries) {
+  // Tally up produced quantities per product name
+  const produced = {};
+  for (const entry of prodEntries) {
+    for (const item of entry.items || []) {
+      produced[item.product] = (produced[item.product] || 0) + item.quantity;
+    }
+  }
+  // Tally up sold quantities per product name
+  const sold = {};
+  for (const entry of salesEntries) {
+    for (const item of entry.items || []) {
+      sold[item.product] = (sold[item.product] || 0) + item.quantity;
+    }
+  }
+
+  return products.map((p) => ({
     product: p.name,
     cover: p.cover,
     frame: p.frame,
     coverKey: p.coverKey,
     frameKey: p.frameKey,
-    coverStock: Math.floor(Math.random() * 200 + 20),
-    frameStock: Math.floor(Math.random() * 200 + 20),
+    coverStock: Math.max(0, (produced[p.cover] || 0) - (sold[p.cover] || 0)),
+    frameStock: Math.max(0, (produced[p.frame] || 0) - (sold[p.frame] || 0)),
   }));
+}
 
 function StockCardMobile({ item }) {
   const total = item.coverStock + item.frameStock;
@@ -111,20 +128,31 @@ function StockRowDesktop({ item }) {
 }
 
 export default function StockPage({ isGhmc = false, products = DAILY_PRODUCTS }) {
-  const [stock, setStock] = useState(() => generateMockStock(products));
-  const [loading, setLoading] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const type = isGhmc ? "ghmc" : "regular";
 
-  async function handleRefresh() {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setStock(generateMockStock(products));
-    setLastRefresh(new Date());
-    toast.success("Stock dashboard refreshed");
-    setLoading(false);
-  }
+  const { data: prodData, refetch: refetchProd, isFetching: fetchingProd } = useQuery({
+    queryKey: ["production", type],
+    queryFn: () => api.get(`/production?type=${type}`),
+  });
+  const { data: salesData, refetch: refetchSales, isFetching: fetchingSales } = useQuery({
+    queryKey: ["sales", type],
+    queryFn: () => api.get(`/sales?type=${type}`),
+  });
+
+  const loading = fetchingProd || fetchingSales;
+
+  const stock = buildStockFromEntries(
+    products,
+    prodData?.data ?? [],
+    salesData?.data ?? []
+  );
 
   const grandTotal = stock.reduce((s, i) => s + i.coverStock + i.frameStock, 0);
+
+  function handleRefresh() {
+    refetchProd();
+    refetchSales();
+  }
 
   return (
     <Layout>
@@ -133,7 +161,7 @@ export default function StockPage({ isGhmc = false, products = DAILY_PRODUCTS })
         subtitle={isGhmc ? "GHMC Work" : "Daily Operations"}
       />
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-4xl mx-auto w-full">
-        {/* Summary card grids */}
+        {/* Summary cards */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="text-center py-4 px-2">
             <p className="text-3xl font-black text-emerald-500">{grandTotal}</p>
@@ -154,6 +182,25 @@ export default function StockPage({ isGhmc = false, products = DAILY_PRODUCTS })
             <div className="flex items-center gap-2">
               <Package size={18} className="text-sky-500" />
               <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Stock Levels</h3>
+              {loading && <span className="text-xs text-sky-500 font-bold animate-pulse">Updating…</span>}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={handleRefresh} className="gap-1.5 text-xs">
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                Refresh
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => downloadCsv(
+                  stock.map((i) => ({ Product: i.product, Covers: i.coverStock, Frames: i.frameStock, Total: i.coverStock + i.frameStock })),
+                  "stock.csv"
+                )}
+              >
+                <Download size={13} />
+                Export
+              </Button>
             </div>
           </div>
 
@@ -180,7 +227,7 @@ export default function StockPage({ isGhmc = false, products = DAILY_PRODUCTS })
           </div>
 
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-5 text-right px-1">
-            Last checked: {lastRefresh.toLocaleTimeString("en-IN")}
+            Live data from database
           </p>
         </Card>
       </div>
