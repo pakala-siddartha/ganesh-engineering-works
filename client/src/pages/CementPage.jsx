@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, Download, History, Trash2 } from "lucide-react";
+import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
@@ -19,6 +19,107 @@ const MOCK_CEMENT = [
   { id: "cem-003", date: "2026-06-28", quantity: 80, direction: "in" },
   { id: "cem-004", date: "2026-06-28", quantity: 20, direction: "out" },
 ];
+
+function ModernDatePicker({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(value ? new Date(value) : new Date());
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  const handleDaySelect = (day) => {
+    const formattedMonth = String(month + 1).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+    onChange(dateStr);
+    setIsOpen(false);
+  };
+
+  const blanks = Array(firstDayIndex).fill(null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const allDays = [...blanks, ...days];
+
+  return (
+    <div className="relative w-full">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex items-center cursor-pointer select-none"
+      >
+        <input
+          type="text"
+          readOnly
+          value={formatDisplayDate(value)}
+          className="w-full bg-[#f2f2f7] border border-black/20 rounded-2xl px-4 py-3 pl-11 text-sm text-[#1d1d1f] font-semibold focus:outline-none focus:bg-white focus:border-black/60 focus:ring-4 focus:ring-black/5 transition-all duration-300 ease-out cursor-pointer hover:border-slate-300"
+        />
+        <span className="absolute left-4 pointer-events-none text-slate-500">
+          <Calendar size={16} />
+        </span>
+      </div>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white border border-black/10 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm font-extrabold text-slate-800">
+                {monthNames[month]} {year}
+              </span>
+              <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center mb-1">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <span key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{d}</span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {allDays.map((day, idx) => {
+                if (day === null) return <span key={`blank-${idx}`} />;
+                const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleDaySelect(day)}
+                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-black text-white"
+                        : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function computeStock(entries) {
   return entries.reduce((sum, e) => {
@@ -90,10 +191,17 @@ export default function CementPage({ isGhmc = false }) {
       ),
     },
     {
-      key: "actions", label: "", cellClassName: "text-right",
+      key: "actions",
+      label: "",
+      className: "text-center",
+      cellClassName: "text-center",
       render: (r) => (
-        <button onClick={() => setConfirmDelete(r)} className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500">
-          <Trash2 size={15} />
+        <button
+          onClick={() => setConfirmDelete(r)}
+          className="flex items-center gap-1.5 px-3 py-1.5 mx-auto rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+        >
+          <Trash2 size={12} className="stroke-[2.5]" />
+          <span>Delete</span>
         </button>
       ),
     },
@@ -105,7 +213,7 @@ export default function CementPage({ isGhmc = false }) {
         title={isGhmc ? "GHMC Cement Stock" : "Cement Stock"}
         subtitle={isGhmc ? "GHMC Work" : "Daily Operations"}
       />
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-4xl mx-auto w-full">
         {/* Stock Status Indicator */}
         <div className={cn(
           "rounded-3xl border p-6 text-center transition-all bg-white",
@@ -137,7 +245,10 @@ export default function CementPage({ isGhmc = false }) {
               <h3 className="font-extrabold text-[#1d1d1f] text-sm uppercase tracking-wider">Cement Stock In</h3>
             </div>
             <div className="space-y-4">
-              <Input type="date" label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-gray-550 uppercase tracking-wider px-1">Date</span>
+                <ModernDatePicker value={date} onChange={setDate} />
+              </div>
               <Input
                 type="number"
                 label="Bags Received"
@@ -161,7 +272,10 @@ export default function CementPage({ isGhmc = false }) {
               <h3 className="font-extrabold text-[#1d1d1f] text-sm uppercase tracking-wider">Cement Consumed</h3>
             </div>
             <div className="space-y-4">
-              <Input type="date" label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-gray-550 uppercase tracking-wider px-1">Date</span>
+                <ModernDatePicker value={date} onChange={setDate} />
+              </div>
               <Input
                 type="number"
                 label="Bags Used"
@@ -180,20 +294,10 @@ export default function CementPage({ isGhmc = false }) {
 
         {/* History movements */}
         <Card>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <History size={18} className="text-orange-500" />
-              <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Ledger history</h3>
-              <Badge variant="warning">{entries.length} Entries</Badge>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="rounded-xl px-3"
-              onClick={() => downloadCsv(entries.map((e) => ({ Date: e.date, Type: e.direction, Quantity: e.quantity })), "cement.csv")}
-            >
-              <Download size={14} /> CSV
-            </Button>
+          <div className="flex items-center gap-2 mb-4">
+            <History size={18} className="text-orange-500" />
+            <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Ledger history</h3>
+            <Badge variant="warning">{entries.length} Entries</Badge>
           </div>
           <Table columns={columns} data={entries} emptyMessage="No cement movements yet" />
         </Card>

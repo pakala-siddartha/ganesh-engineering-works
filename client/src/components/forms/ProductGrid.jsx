@@ -36,8 +36,8 @@ export function ProductGrid({ products, quantities, onChange }) {
                 "sm:grid sm:grid-cols-[1fr_120px_120px_100px] sm:gap-3 sm:items-center sm:px-4 sm:py-3",
                 "p-4 space-y-3 sm:space-y-0",
                 rowTotal > 0
-                  ? "border-orange-500/20 shadow-[0_4px_16px_rgba(249,115,22,0.04)]"
-                  : "border-black/5"
+                  ? "border-black/60 shadow-[0_4px_16px_rgba(0,0,0,0.04)]"
+                  : "border-black/20"
               )}
             >
               {/* Product Label */}
@@ -93,10 +93,10 @@ export function ProductGrid({ products, quantities, onChange }) {
       </div>
 
       {/* Grand total bar */}
-      <div className="flex justify-end pt-3">
-        <div className="flex items-center gap-3 px-5 py-2.5 bg-orange-500/5 rounded-2xl border border-orange-500/10 shadow-sm shadow-orange-500/5">
+      <div className="flex justify-center pt-3">
+        <div className="flex items-center gap-3 px-5 py-2.5 bg-black/5 rounded-2xl border border-black/10 shadow-sm">
           <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Grand Total</span>
-          <span className="text-2xl font-black text-orange-500">{total}</span>
+          <span className="text-2xl font-black text-black">{total}</span>
         </div>
       </div>
     </div>

@@ -18,6 +18,8 @@ export function Button({
   const variants = {
     primary:
       "bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-[0_8px_20px_rgba(249,115,22,0.2)] shadow-md shadow-orange-500/10",
+    blue:
+      "bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:shadow-[0_8px_20px_rgba(37,99,235,0.3)] shadow-md shadow-blue-500/15 focus:ring-4 focus:ring-blue-500/20",
     secondary:
       "bg-[#e8e8ed] text-[#1d1d1f] hover:bg-[#d2d2d7]",
     danger:

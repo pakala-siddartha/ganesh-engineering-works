@@ -10,16 +10,12 @@ import {
   Layers,
   BarChart3,
   Building2,
-  ChevronRight,
-  LogOut
+  ChevronRight
 } from "lucide-react";
 import { ROUTES } from "../../constants/routes";
-import { useAuth } from "../../context/AuthContext";
-import { Button } from "../ui/Button";
 
 export function BottomNav() {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAuth();
   const location = useLocation();
 
   const handleLinkClick = () => {
@@ -29,12 +25,7 @@ export function BottomNav() {
   const moreLinks = [
     { label: "Cement Stock", href: ROUTES.CEMENT, icon: Layers },
     { label: "Statistics", href: ROUTES.STATISTICS, icon: BarChart3 },
-    { label: "GHMC Dashboard", href: ROUTES.GHMC, icon: Building2 },
-    { label: "GHMC Production", href: ROUTES.GHMC_PRODUCTION, icon: Factory },
-    { label: "GHMC Sales", href: ROUTES.GHMC_SALES, icon: ShoppingCart },
-    { label: "GHMC Stock", href: ROUTES.GHMC_STOCK, icon: Package },
-    { label: "GHMC Cement", href: ROUTES.GHMC_CEMENT, icon: Layers },
-    { label: "GHMC Statistics", href: ROUTES.GHMC_STATISTICS, icon: BarChart3 },
+    { label: "GHMC Work", href: ROUTES.GHMC, icon: Building2 },
   ];
 
   return (
@@ -127,41 +118,12 @@ export function BottomNav() {
 
             {/* List links */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Daily Sections */}
+              {/* Daily & GHMC Sections */}
               <div className="bg-white rounded-2xl p-2 shadow-sm space-y-1">
                 <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  Daily Work
+                  More Operations
                 </p>
-                <NavLink
-                  to={ROUTES.CEMENT}
-                  onClick={handleLinkClick}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <Layers size={18} className="text-orange-500" />
-                    <span className="text-sm font-medium">Cement Stock</span>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-400" />
-                </NavLink>
-                <NavLink
-                  to={ROUTES.STATISTICS}
-                  onClick={handleLinkClick}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <BarChart3 size={18} className="text-orange-500" />
-                    <span className="text-sm font-medium">Statistics</span>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-400" />
-                </NavLink>
-              </div>
-
-              {/* GHMC Sections */}
-              <div className="bg-white rounded-2xl p-2 shadow-sm space-y-1">
-                <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  GHMC Work
-                </p>
-                {moreLinks.slice(2).map((item) => (
+                {moreLinks.map((item) => (
                   <NavLink
                     key={item.href}
                     to={item.href}
@@ -169,27 +131,15 @@ export function BottomNav() {
                     className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon size={18} className="text-violet-500" />
+                      <item.icon
+                        size={18}
+                        className={item.href === ROUTES.GHMC ? "text-violet-500" : "text-orange-500"}
+                      />
                       <span className="text-sm font-medium">{item.label}</span>
                     </div>
                     <ChevronRight size={14} className="text-gray-400" />
                   </NavLink>
                 ))}
-              </div>
-
-              {/* Logout Button */}
-              <div className="pt-2">
-                <Button
-                  variant="danger"
-                  className="w-full justify-center py-3 rounded-2xl"
-                  onClick={() => {
-                    setIsOpen(false);
-                    logout();
-                  }}
-                >
-                  <LogOut size={16} />
-                  <span>Logout</span>
-                </Button>
               </div>
             </div>
           </div>

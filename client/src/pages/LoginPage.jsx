@@ -4,10 +4,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { Lock, Eye, EyeOff, Factory } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/Button";
 import { ROUTES } from "../constants/routes";
+import ganeshImage from "../assets/ganesh_image.jpeg";
+
 
 const schema = z.object({
   password: z.string().min(1, "Password is required"),
@@ -37,28 +39,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Soft liquid glow backdrops */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-white flex items-center justify-center p-4 relative overflow-hidden">
+      {/* iOS Liquid glow backdrops - soft blue tones for light background */}
+      <div className="absolute top-1/10 left-1/10 w-[500px] h-[500px] bg-blue-200/40 rounded-full blur-[100px] pointer-events-none animate-liquid-blob-1" />
+      <div className="absolute bottom-1/10 right-1/10 w-[450px] h-[450px] bg-indigo-100/30 rounded-full blur-[100px] pointer-events-none animate-liquid-blob-2" />
+      <div className="absolute top-1/2 left-1/2 w-[350px] h-[350px] bg-cyan-100/30 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2 pointer-events-none animate-liquid-blob-1" />
 
       {/* Login card */}
       <div className="relative z-10 w-full max-w-md animate-in fade-in zoom-in-95 duration-500 ease-out">
-        <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.03)] overflow-hidden p-8">
+        <div className="bg-white/70 backdrop-blur-2xl border border-blue-100/60 rounded-3xl shadow-[0_12px_40px_rgba(0,122,255,0.06)] overflow-hidden p-8">
           
           {/* Brand Logo & Heading */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
-              <Factory size={24} className="text-white" />
+            <div className="w-14 h-14 rounded-2xl overflow-hidden border border-blue-100 flex items-center justify-center bg-white shrink-0 shadow-md shadow-blue-500/10">
+              <img
+                src={ganeshImage}
+                alt="Ganesh Engineering Works Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500 mb-0.5">
-                Private Access
-              </p>
               <h1 className="text-xl font-extrabold text-[#1d1d1f] tracking-tight leading-tight">
-                Ganesh Engineering
+                Ganesh Engineering Works
               </h1>
-              <p className="text-xs text-gray-400 font-medium">Operations Dashboard</p>
             </div>
           </div>
 
@@ -67,14 +70,14 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 pl-1"
+                className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 pl-1"
               >
                 Password
               </label>
               <div className="relative">
                 <Lock
                   size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500/80"
                 />
                 <input
                   id="password"
@@ -83,12 +86,12 @@ export default function LoginPage() {
                   autoFocus
                   placeholder="Enter access password"
                   {...register("password")}
-                  className="w-full bg-[#f2f2f7] border border-black/5 rounded-2xl px-4 py-3.5 pl-11 pr-12 text-sm text-[#1d1d1f] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 transition-all duration-300 ease-out"
+                  className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl px-4 py-3.5 pl-11 pr-12 text-sm text-[#1d1d1f] placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 ease-out"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((p) => !p)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -103,18 +106,14 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              variant="primary"
+              variant="blue"
               size="lg"
-              className="w-full justify-center py-3.5"
+              className="w-full justify-center py-3.5 liquid-glow-blue"
               loading={isSubmitting}
             >
               Login
             </Button>
           </form>
-
-          <p className="mt-8 text-center text-[10px] text-gray-400 uppercase tracking-wider font-bold">
-            Ganesh Engineering Works · Internal Use Only
-          </p>
         </div>
       </div>
     </div>

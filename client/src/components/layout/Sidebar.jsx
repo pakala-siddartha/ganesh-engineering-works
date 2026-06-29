@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ROUTES } from "../../constants/routes";
 import { cn } from "../../lib/utils";
+import ganeshImage from "../../assets/ganesh_image.jpeg";
 
 const dailyNav = [
   { label: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
@@ -18,16 +19,8 @@ const dailyNav = [
   { label: "Sales", href: ROUTES.SALES, icon: ShoppingCart },
   { label: "Stock", href: ROUTES.STOCK, icon: Package },
   { label: "Cement", href: ROUTES.CEMENT, icon: Layers },
+  { label: "GHMC Work", href: ROUTES.GHMC, icon: Building2 },
   { label: "Statistics", href: ROUTES.STATISTICS, icon: BarChart3 },
-];
-
-const ghmcNav = [
-  { label: "GHMC Dashboard", href: ROUTES.GHMC, icon: Building2 },
-  { label: "Production", href: ROUTES.GHMC_PRODUCTION, icon: Factory },
-  { label: "Sales", href: ROUTES.GHMC_SALES, icon: ShoppingCart },
-  { label: "Stock", href: ROUTES.GHMC_STOCK, icon: Package },
-  { label: "Cement", href: ROUTES.GHMC_CEMENT, icon: Layers },
-  { label: "Statistics", href: ROUTES.GHMC_STATISTICS, icon: BarChart3 },
 ];
 
 function NavItem({ href, icon: Icon, label, exact, isGhmcSection }) {
@@ -60,14 +53,13 @@ export function Sidebar() {
       {/* Brand Logo & Name */}
       <div className="px-5 py-6 border-b border-black/5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
-            <span className="text-white font-black text-sm">GE</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-black/5 flex items-center justify-center bg-white shrink-0 shadow-md shadow-orange-500/10">
+            <img src={ganeshImage} alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-[#1d1d1f] leading-tight">
-              Ganesh Engineering
+              Ganesh Engineering Works
             </h1>
-            <p className="text-xs text-[#86868b]">Operations Panel</p>
           </div>
         </div>
       </div>
@@ -87,38 +79,12 @@ export function Sidebar() {
                 icon={item.icon}
                 label={item.label}
                 exact={item.href === ROUTES.DASHBOARD}
-                isGhmcSection={false}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* GHMC section */}
-        <div>
-          <p className="px-3.5 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">
-            GHMC Work
-          </p>
-          <div className="space-y-1">
-            {ghmcNav.map((item) => (
-              <NavItem
-                key={item.href}
-                href={item.href}
-                icon={item.icon}
-                label={item.label}
-                exact={item.href === ROUTES.GHMC}
-                isGhmcSection={true}
+                isGhmcSection={item.href === ROUTES.GHMC}
               />
             ))}
           </div>
         </div>
       </nav>
-
-      {/* Footer version */}
-      <div className="px-4 py-4 border-t border-black/5">
-        <p className="text-[10px] text-gray-400 text-center">
-          v2.0 · Liquid UI
-        </p>
-      </div>
     </aside>
   );
 }

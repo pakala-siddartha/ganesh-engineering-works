@@ -20,7 +20,7 @@ export function Table({ columns, data, emptyMessage = "No data found", className
                 // If it is the action column, render it full width or as a bottom action bar
                 if (col.key === "actions") {
                   return (
-                    <div key={col.key} className="flex justify-end pt-2 border-t border-black/5">
+                    <div key={col.key} className="flex justify-center pt-2 border-t border-black/5">
                       {col.render ? col.render(row) : null}
                     </div>
                   );

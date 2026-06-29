@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, Download, History, Pencil, Trash2, X } from "lucide-react";
+import { Save, Download, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
@@ -44,6 +44,107 @@ const MOCK_HISTORY = [
     items: [{ product: "EHD35-600X600MM-Cover", quantity: 48 }, { product: "EHD35-600X600MM-Frame", quantity: 48 }],
   },
 ];
+
+function ModernDatePicker({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(value ? new Date(value) : new Date());
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  const handleDaySelect = (day) => {
+    const formattedMonth = String(month + 1).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+    onChange(dateStr);
+    setIsOpen(false);
+  };
+
+  const blanks = Array(firstDayIndex).fill(null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const allDays = [...blanks, ...days];
+
+  return (
+    <div className="relative w-full">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative flex items-center cursor-pointer select-none"
+      >
+        <input
+          type="text"
+          readOnly
+          value={formatDisplayDate(value)}
+          className="w-full bg-[#f2f2f7] border border-black/20 rounded-2xl px-4 py-3 pl-11 text-sm text-[#1d1d1f] font-semibold focus:outline-none focus:bg-white focus:border-black/60 focus:ring-4 focus:ring-black/5 transition-all duration-300 ease-out cursor-pointer hover:border-slate-300"
+        />
+        <span className="absolute left-4 pointer-events-none text-slate-500">
+          <Calendar size={16} />
+        </span>
+      </div>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white border border-black/10 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm font-extrabold text-slate-800">
+                {monthNames[month]} {year}
+              </span>
+              <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 text-center mb-1">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <span key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{d}</span>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {allDays.map((day, idx) => {
+                if (day === null) return <span key={`blank-${idx}`} />;
+                const isSelected = value && new Date(value).getDate() === day && new Date(value).getMonth() === month && new Date(value).getFullYear() === year;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleDaySelect(day)}
+                    className={`py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-black text-white"
+                        : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function initQuantities(products) {
   return products.reduce((acc, p) => {
@@ -140,18 +241,27 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
 
   const columns = [
     { key: "date", label: "Date", render: (r) => formatDisplayDate(r.date) },
-    { key: "totalQuantity", label: "Total Qty", render: (r) => <span className="font-extrabold text-orange-500">{r.totalQuantity} pcs</span> },
+    { key: "totalQuantity", label: "Total Qty", render: (r) => <span className="font-extrabold text-slate-800">{r.totalQuantity} pcs</span> },
     {
       key: "actions",
       label: "Actions",
-      cellClassName: "text-right",
+      className: "text-center",
+      cellClassName: "text-center",
       render: (r) => (
-        <div className="flex items-center justify-end gap-1">
-          <button onClick={() => handleEdit(r)} className="p-2 rounded-xl hover:bg-orange-50 text-gray-400 hover:text-orange-500 transition-colors">
-            <Pencil size={15} />
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => handleEdit(r)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+          >
+            <Pencil size={12} className="stroke-[2.5]" />
+            <span>Edit</span>
           </button>
-          <button onClick={() => setConfirmDelete(r)} className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
-            <Trash2 size={15} />
+          <button
+            onClick={() => setConfirmDelete(r)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-500 font-bold text-xs transition-all duration-200 cursor-pointer"
+          >
+            <Trash2 size={12} className="stroke-[2.5]" />
+            <span>Delete</span>
           </button>
         </div>
       ),
@@ -164,7 +274,7 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
         title={isGhmc ? "GHMC Production Entry" : "Production Entry"}
         subtitle={isGhmc ? "GHMC Work" : "Daily Operations"}
       />
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 max-w-4xl mx-auto w-full">
         {/* Entry Card */}
         <Card>
           {editingEntry && (
@@ -185,13 +295,11 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
             <h3 className="text-base font-extrabold text-gray-800 tracking-tight">
               {editingEntry ? "Update Production" : "New Production"}
             </h3>
-            <div className="w-full sm:w-52">
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                label="Date"
-              />
+            <div className="w-full sm:w-56">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 pl-1">
+                Date
+              </label>
+              <ModernDatePicker value={date} onChange={setDate} />
             </div>
           </div>
 
@@ -201,21 +309,26 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
             onChange={handleQtyChange}
           />
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-black/5">
-            <Button variant="primary" size="md" onClick={handleSaveClick} className="flex-1 py-3.5 justify-center">
-              <Save size={18} />
+          <div className="flex flex-col items-center gap-3 mt-6 pt-6 border-t border-black/5">
+            <Button
+              variant="blue"
+              size="md"
+              onClick={handleSaveClick}
+              className="w-full sm:w-auto sm:px-12 py-2.5 justify-center text-sm shadow-sm"
+            >
+              <Save size={16} />
               {editingEntry ? "Update Entry" : "Save Production"}
             </Button>
             <Button
               variant="secondary"
-              size="md"
-              className="py-3.5 justify-center"
+              size="sm"
+              className="w-full sm:w-auto sm:px-10 py-2 justify-center text-xs text-slate-500"
               onClick={() => downloadCsv(
                 history.map((e) => ({ Date: e.date, "Total Qty": e.totalQuantity })),
                 "production.csv"
               )}
             >
-              <Download size={18} />
+              <Download size={14} />
               Export CSV
             </Button>
           </div>

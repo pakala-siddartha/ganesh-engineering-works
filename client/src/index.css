@@ -92,3 +92,56 @@ body {
 .liquid-glow-card {
   box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.03), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
 }
+
+/* High contrast blue glow for login elements */
+.liquid-glow-blue {
+  box-shadow: 0 8px 32px 0 rgba(0, 122, 255, 0.25);
+}
+
+/* Liquid morphing animations for background blobs */
+@keyframes morphLiquid {
+  0% {
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    border-radius: 70% 30% 52% 48% / 60% 40% 60% 40%;
+    transform: translate(8%, -8%) scale(1.15) rotate(120deg);
+  }
+  66% {
+    border-radius: 50% 50% 30% 70% / 40% 60% 30% 70%;
+    transform: translate(-8%, 12%) scale(0.9) rotate(240deg);
+  }
+  100% {
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    transform: translate(0, 0) scale(1) rotate(360deg);
+  }
+}
+
+.animate-liquid-blob-1 {
+  animation: morphLiquid 20s ease-in-out infinite alternate;
+}
+
+.animate-liquid-blob-2 {
+  animation: morphLiquid 16s ease-in-out infinite alternate-reverse;
+}
+
+/* 3D Card Flip Effect */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+

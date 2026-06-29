@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Factory,
   ShoppingCart,
@@ -9,9 +10,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
-import { Header } from "../components/layout/Header";
 import { MetricCard } from "../components/ui/Card";
 import { ROUTES } from "../constants/routes";
+import ganeshImage from "../assets/ganesh_image.jpeg";
 
 // ─── Mock data (replace with TanStack Query + API when Supabase is ready) ───
 const mockDailyMetrics = {
@@ -21,70 +22,80 @@ const mockDailyMetrics = {
   cementBags: 340,
 };
 
-const mockGhmcMetrics = {
-  todayProduction: 56,
-  todaySales: 42,
-  stock: 628,
-  cementBags: 90,
-};
-
 const dailyQuickLinks = [
-  { label: "Production Entry", sub: "Covers and frames", href: ROUTES.PRODUCTION, icon: Factory, featured: true },
+  { label: "Production Entry", sub: "Covers and frames", href: ROUTES.PRODUCTION, icon: Factory },
   { label: "Sales Entry", sub: "Customer dispatch", href: ROUTES.SALES, icon: ShoppingCart },
   { label: "Stock Dashboard", sub: "Available stock", href: ROUTES.STOCK, icon: Package },
   { label: "Cement Stock", sub: "Cement bags", href: ROUTES.CEMENT, icon: Layers },
+  { label: "GHMC Work", sub: "GHMC dashboard", href: ROUTES.GHMC, icon: Building2 },
   { label: "Statistics", sub: "Date reports", href: ROUTES.STATISTICS, icon: BarChart3 },
 ];
 
-const ghmcQuickLinks = [
-  { label: "GHMC Dashboard", sub: "All GHMC controls", href: ROUTES.GHMC, icon: Building2, featured: true },
-  { label: "GHMC Production", sub: "Entry work", href: ROUTES.GHMC_PRODUCTION, icon: Factory },
-  { label: "GHMC Sales", sub: "Dispatch work", href: ROUTES.GHMC_SALES, icon: ShoppingCart },
-  { label: "GHMC Stock", sub: "Available stock", href: ROUTES.GHMC_STOCK, icon: Package },
-  { label: "GHMC Cement", sub: "Cement bags", href: ROUTES.GHMC_CEMENT, icon: Layers },
-  { label: "GHMC Statistics", sub: "Date reports", href: ROUTES.GHMC_STATISTICS, icon: BarChart3 },
-];
+function QuickLinkCard({ label, sub, href, icon: Icon }) {
+  const navigate = useNavigate();
+  const [isFlipped, setIsFlipped] = useState(false);
 
-function QuickLinkCard({ label, sub, href, icon: Icon, featured }) {
+  const handleClick = (e) => {
+    e.preventDefault();
+    setIsFlipped(true);
+    setTimeout(() => {
+      navigate(href);
+    }, 450); // 450ms animation duration
+  };
+
   return (
-    <Link
-      to={href}
-      className={`group flex flex-col gap-2 p-5 rounded-3xl border transition-all duration-300 active:scale-[0.98] ${
-        featured
-          ? "bg-gradient-to-br from-orange-500/10 to-amber-500/5 border-orange-500/15 hover:shadow-[0_8px_24px_rgba(249,115,22,0.06)]"
-          : "bg-white border-black/5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.02)]"
-      }`}
+    <div
+      onClick={handleClick}
+      className="perspective-1000 w-full h-[120px] sm:h-[140px] lg:h-[185px] cursor-pointer select-none"
     >
-      <div className="flex items-center justify-between">
-        <div className={`p-2.5 rounded-xl ${featured ? "bg-orange-50" : "bg-[#f2f2f7]"}`}>
-          <Icon size={18} className={featured ? "text-orange-500" : "text-gray-500"} />
+      <div
+        className={`relative w-full h-full transition-transform duration-500 preserve-3d ${
+          isFlipped ? "rotate-y-180" : ""
+        }`}
+      >
+        {/* Front Face */}
+        <div className="absolute inset-0 w-full h-full backface-hidden group flex flex-col gap-1.5 sm:gap-2 lg:gap-4 p-3 sm:p-5 lg:p-7 rounded-2xl sm:rounded-3xl lg:rounded-[28px] border bg-white border-black/5 hover:shadow-[0_12px_32px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="p-1.5 sm:p-2.5 lg:p-3.5 rounded-xl sm:rounded-2xl bg-[#f2f2f7] group-hover:bg-blue-50 transition-colors">
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-gray-500 group-hover:text-blue-600 transition-colors" />
+            </div>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </div>
+          <div>
+            <p className="text-[11px] sm:text-sm lg:text-base font-bold text-gray-800 transition-colors group-hover:text-blue-600 line-clamp-1">{label}</p>
+            <p className="text-[9px] sm:text-xs lg:text-sm text-gray-400 font-medium mt-0.5 line-clamp-1">{sub}</p>
+          </div>
         </div>
-        <ArrowRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-transform" />
+
+        {/* Back Face */}
+        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-gradient-to-br from-blue-600 to-cyan-500 text-white rounded-2xl sm:rounded-3xl lg:rounded-[28px] border border-blue-500/20 flex flex-col items-center justify-center p-3 gap-1 shadow-lg shadow-blue-500/10">
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-white animate-pulse" />
+          <p className="text-[10px] sm:text-xs lg:text-sm font-bold uppercase tracking-wider mt-1 text-blue-50">Opening</p>
+          <p className="text-[8px] sm:text-[10px] lg:text-xs text-cyan-100 font-medium opacity-80 line-clamp-1">{label}</p>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-bold text-gray-800">{label}</p>
-        <p className="text-xs text-gray-400 font-medium mt-0.5">{sub}</p>
-      </div>
-    </Link>
+    </div>
   );
 }
 
 export default function DashboardPage() {
   return (
     <Layout>
-      <Header title="Operations Dashboard" subtitle="Home" />
+      {/* Mobile Branding Header */}
+      <div className="md:hidden flex items-center gap-4 px-5 pt-6 pb-2">
+        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-black/5 flex items-center justify-center bg-white shadow-md shrink-0">
+          <img src={ganeshImage} alt="Logo" className="w-full h-full object-cover" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black text-[#1d1d1f] tracking-tight leading-tight">
+            Ganesh Engineering Works
+          </h1>
+        </div>
+      </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-8 max-w-5xl mx-auto w-full lg:flex lg:flex-col lg:justify-center lg:py-12">
         {/* ── Daily Production Section ── */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="w-1 h-5 bg-orange-500 rounded-full" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500">Regular Work</p>
-              <h3 className="text-base font-extrabold text-gray-800 tracking-tight">Daily Operations</h3>
-            </div>
-          </div>
-
           {/* Metric cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
@@ -118,61 +129,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick links */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-2">
+          <div className="grid grid-cols-3 gap-3 pt-2">
             {dailyQuickLinks.map((link) => (
-              <QuickLinkCard key={link.href} {...link} />
-            ))}
-          </div>
-        </section>
-
-        {/* Divider */}
-        <div className="border-t border-black/5" />
-
-        {/* ── GHMC Section ── */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="w-1 h-5 bg-violet-500 rounded-full" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">GHMC Work</p>
-              <h3 className="text-base font-extrabold text-gray-800 tracking-tight">GHMC Operations</h3>
-            </div>
-          </div>
-
-          {/* GHMC Metric cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              label="Today Production"
-              value={mockGhmcMetrics.todayProduction}
-              sub="GHMC produced today"
-              icon={Factory}
-              color="violet"
-            />
-            <MetricCard
-              label="Today Sales"
-              value={mockGhmcMetrics.todaySales}
-              sub="GHMC sold today"
-              icon={ShoppingCart}
-              color="emerald"
-            />
-            <MetricCard
-              label="Stock"
-              value={mockGhmcMetrics.stock}
-              sub="GHMC available now"
-              icon={Package}
-              color="sky"
-            />
-            <MetricCard
-              label="Cement"
-              value={mockGhmcMetrics.cementBags}
-              sub="GHMC bags in stock"
-              icon={Layers}
-              color="amber"
-            />
-          </div>
-
-          {/* GHMC Quick links */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 pt-2">
-            {ghmcQuickLinks.map((link) => (
               <QuickLinkCard key={link.href} {...link} />
             ))}
           </div>
