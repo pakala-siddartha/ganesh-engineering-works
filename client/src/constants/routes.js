@@ -1,0 +1,15 @@
+export const ROUTES = {
+  LOGIN: "/login",
+  DASHBOARD: "/",
+  PRODUCTION: "/production",
+  SALES: "/sales",
+  STOCK: "/stock",
+  CEMENT: "/cement",
+  STATISTICS: "/statistics",
+  GHMC: "/ghmc",
+  GHMC_PRODUCTION: "/ghmc/production",
+  GHMC_SALES: "/ghmc/sales",
+  GHMC_STOCK: "/ghmc/stock",
+  GHMC_CEMENT: "/ghmc/cement",
+  GHMC_STATISTICS: "/ghmc/statistics",
+};

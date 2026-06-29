@@ -1,0 +1,18 @@
+{
+  "name": "ganesh-server",
+  "version": "1.0.0",
+  "description": "Ganesh Engineering Works — Express + Supabase backend",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.1.0"
+  }
+}
