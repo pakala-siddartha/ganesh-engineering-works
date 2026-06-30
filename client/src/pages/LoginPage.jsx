@@ -8,7 +8,6 @@ import { Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/Button";
 import { ROUTES } from "../constants/routes";
-import ganeshImage from "../assets/ganesh_image.jpeg";
 
 
 const schema = z.object({
@@ -53,7 +52,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-4 mb-8">
             <div className="w-14 h-14 rounded-2xl overflow-hidden border border-blue-100 flex items-center justify-center bg-white shrink-0 shadow-md shadow-blue-500/10">
               <img
-                src={ganeshImage}
+                src="/favicon.jpeg"
                 alt="Ganesh Engineering Works Logo"
                 className="w-full h-full object-cover"
               />

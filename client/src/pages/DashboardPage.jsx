@@ -13,7 +13,6 @@ import {
 import { Layout } from "../components/layout/Layout";
 import { MetricCard } from "../components/ui/Card";
 import { ROUTES } from "../constants/routes";
-import ganeshImage from "../assets/ganesh_image.jpeg";
 import api from "../services/api";
 
 const dailyQuickLinks = [
@@ -113,7 +112,7 @@ export default function DashboardPage() {
       {/* Mobile Branding Header */}
       <div className="md:hidden flex items-center gap-4 px-5 pt-6 pb-2">
         <div className="w-14 h-14 rounded-2xl overflow-hidden border border-black/5 flex items-center justify-center bg-white shadow-md shrink-0">
-          <img src={ganeshImage} alt="Logo" className="w-full h-full object-cover" />
+          <img src="/favicon.jpeg" alt="Logo" className="w-full h-full object-cover" />
         </div>
         <div>
           <h1 className="text-2xl font-black text-[#1d1d1f] tracking-tight leading-tight">
