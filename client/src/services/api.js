@@ -1,9 +1,14 @@
 import axios from "axios";
 
+let baseURL = import.meta.env.VITE_API_URL || "/api";
+if (baseURL.startsWith("http") && !baseURL.endsWith("/api")) {
+  baseURL = baseURL.replace(/\/$/, "") + "/api";
+}
+
 // Axios instance pointing to Express backend
 // Falls back to mock data when server is not running
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
