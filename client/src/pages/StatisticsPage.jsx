@@ -1,15 +1,11 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, TrendingUp, ShoppingCart, Package, Calendar, CalendarDays, CalendarRange, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import toast from "react-hot-toast";
+import { BarChart3, TrendingUp, ShoppingCart, Package, Calendar, CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
-import { Modal } from "../components/ui/Modal";
-import { Button } from "../components/ui/Button";
 import { cn } from "../lib/utils";
 import { formatDateInput, formatDisplayDate, getCurrentMonthValue } from "../utils/dateUtils";
-import { downloadExcel } from "../utils/excelUtils";
 import api from "../services/api";
 
 // ── Shared popup position helper ────────────────────────────────────────────
@@ -59,7 +55,7 @@ function DatePicker({ value, onChange }) {
     <div className="relative w-full sm:w-auto">
       <div ref={triggerRef} onClick={openCalendar} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={formatDisplayDate(value)}
-          className="w-full sm:w-44 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all duration-200 cursor-pointer hover:border-black/20"
+          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all duration-200 cursor-pointer hover:border-black/20"
         />
         <Calendar size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -100,7 +96,6 @@ function DatePicker({ value, onChange }) {
 }
 
 // ── Month Picker ─────────────────────────────────────────────────────────────
-// value format: "YYYY-MM"
 function MonthPicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewYear, setViewYear] = useState(value ? parseInt(value.split("-")[0]) : new Date().getFullYear());
@@ -121,7 +116,7 @@ function MonthPicker({ value, onChange }) {
     <div className="relative w-full sm:w-auto">
       <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={displayLabel}
-          className="w-full sm:w-48 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
         />
         <CalendarDays size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -153,7 +148,6 @@ function MonthPicker({ value, onChange }) {
 }
 
 // ── Year Picker ───────────────────────────────────────────────────────────────
-// value format: "YYYY"
 function YearPicker({ value, onChange }) {
   const currentYear = new Date().getFullYear();
   const [startYear, setStartYear] = useState(currentYear - 4);
@@ -170,7 +164,7 @@ function YearPicker({ value, onChange }) {
     <div className="relative w-full sm:w-auto">
       <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={value ?? "Select Year"}
-          className="w-full sm:w-48 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
         />
         <CalendarRange size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -231,14 +225,19 @@ const MODES = [
 export default function StatisticsPage({ isGhmc = false }) {
   const type = isGhmc ? "ghmc" : "regular";
   const [mode, setMode] = useState("date");
-  const [dateVal, setDateVal] = useState(formatDateInput());
-  const [monthVal, setMonthVal] = useState(getCurrentMonthValue());
-  const [yearVal, setYearVal] = useState(String(new Date().getFullYear()));
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState({ production: true, sales: true, cement: true });
-  const [fromDate, setFromDate] = useState(formatDateInput());
-  const [toDate, setToDate] = useState(formatDateInput());
+  const today = formatDateInput();
+  const thisMonth = getCurrentMonthValue();
+  const thisYear = String(new Date().getFullYear());
+
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+
+  const [startMonth, setStartMonth] = useState(thisMonth);
+  const [endMonth, setEndMonth] = useState(thisMonth);
+
+  const [startYear, setStartYear] = useState(thisYear);
+  const [endYear, setEndYear] = useState(thisYear);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   const { data: prodData } = useQuery({
@@ -260,24 +259,42 @@ export default function StatisticsPage({ isGhmc = false }) {
 
   // ── Filtered stats ───────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    let label = dateVal;
+    let label = "";
     let fp = prodEntries, fs = salesEntries, fc = cementEntries;
 
     if (mode === "date") {
-      label = dateVal;
-      fp = prodEntries.filter((e) => e.date === dateVal);
-      fs = salesEntries.filter((e) => e.date === dateVal);
-      fc = cementEntries.filter((e) => e.date === dateVal);
+      label = startDate === endDate ? formatDisplayDate(startDate) : `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}`;
+      fp = prodEntries.filter((e) => e.date >= startDate && e.date <= endDate);
+      fs = salesEntries.filter((e) => e.date >= startDate && e.date <= endDate);
+      fc = cementEntries.filter((e) => e.date >= startDate && e.date <= endDate);
     } else if (mode === "month") {
-      label = monthVal;
-      fp = prodEntries.filter((e) => e.date?.startsWith(monthVal));
-      fs = salesEntries.filter((e) => e.date?.startsWith(monthVal));
-      fc = cementEntries.filter((e) => e.date?.startsWith(monthVal));
+      label = startMonth === endMonth ? startMonth : `${startMonth} to ${endMonth}`;
+      fp = prodEntries.filter((e) => {
+        const m = e.date?.slice(0, 7);
+        return m >= startMonth && m <= endMonth;
+      });
+      fs = salesEntries.filter((e) => {
+        const m = e.date?.slice(0, 7);
+        return m >= startMonth && m <= endMonth;
+      });
+      fc = cementEntries.filter((e) => {
+        const m = e.date?.slice(0, 7);
+        return m >= startMonth && m <= endMonth;
+      });
     } else {
-      label = yearVal;
-      fp = prodEntries.filter((e) => e.date?.startsWith(yearVal));
-      fs = salesEntries.filter((e) => e.date?.startsWith(yearVal));
-      fc = cementEntries.filter((e) => e.date?.startsWith(yearVal));
+      label = startYear === endYear ? startYear : `${startYear} to ${endYear}`;
+      fp = prodEntries.filter((e) => {
+        const y = e.date?.slice(0, 4);
+        return y >= startYear && y <= endYear;
+      });
+      fs = salesEntries.filter((e) => {
+        const y = e.date?.slice(0, 4);
+        return y >= startYear && y <= endYear;
+      });
+      fc = cementEntries.filter((e) => {
+        const y = e.date?.slice(0, 4);
+        return y >= startYear && y <= endYear;
+      });
     }
 
     return {
@@ -287,43 +304,7 @@ export default function StatisticsPage({ isGhmc = false }) {
       cementUsed: fc.filter((e) => e.direction === "out").reduce((s, e) => s + (e.quantity || 0), 0),
       cementIn: fc.filter((e) => e.direction === "in").reduce((s, e) => s + (e.quantity || 0), 0),
     };
-  }, [mode, dateVal, monthVal, yearVal, prodEntries, salesEntries, cementEntries]);
-
-
-
-  const handleGenerateExcel = () => {
-    if (!selectedCategories.production && !selectedCategories.sales && !selectedCategories.cement) {
-      toast.error("Select at least one ledger category");
-      return;
-    }
-    const start = new Date(fromDate);
-    const end = new Date(toDate);
-    if (end < start) { toast.error("End date must be after start date"); return; }
-
-    const rows = [];
-    if (selectedCategories.production) {
-      prodEntries
-        .filter(e => e.date >= fromDate && e.date <= toDate)
-        .forEach(e => rows.push({ Date: e.date, Category: "Production", Quantity: e.total_quantity, Unit: "pcs" }));
-    }
-    if (selectedCategories.sales) {
-      salesEntries
-        .filter(e => e.date >= fromDate && e.date <= toDate)
-        .forEach(e => rows.push({ Date: e.date, Category: "Sales", Customer: e.customer_name || e.customerName, Quantity: e.total_quantity, Unit: "pcs" }));
-    }
-    if (selectedCategories.cement) {
-      cementEntries
-        .filter(e => e.date >= fromDate && e.date <= toDate)
-        .forEach(e => rows.push({ Date: e.date, Category: "Cement", Direction: e.direction, Quantity: e.quantity, Unit: "bags" }));
-    }
-
-    if (rows.length === 0) { toast.error("No data found in selected date range"); return; }
-    downloadExcel(rows, `report_${fromDate}_to_${toDate}.xlsx`, "Statistics");
-    toast.success(`Report exported — ${rows.length} records`);
-    setIsModalOpen(false);
-  };
-
-  const periodLabel = mode === "date" ? formatDisplayDate(dateVal) : mode === "month" ? monthVal : yearVal;
+  }, [mode, startDate, endDate, startMonth, endMonth, startYear, endYear, prodEntries, salesEntries, cementEntries]);
 
   return (
     <Layout>
@@ -355,21 +336,29 @@ export default function StatisticsPage({ isGhmc = false }) {
               ))}
             </div>
 
-            {/* Picker + Export */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              {mode === "date" && <DatePicker value={dateVal} onChange={setDateVal} />}
-              {mode === "month" && <MonthPicker value={monthVal} onChange={setMonthVal} />}
-              {mode === "year"  && <YearPicker  value={yearVal}  onChange={setYearVal} />}
-
-              <Button
-                variant="secondary"
-                size="sm"
-                className="gap-1.5 text-xs rounded-xl"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <Download size={13} />
-                Export Excel
-              </Button>
+            {/* Picker ranges */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              {mode === "date" && (
+                <>
+                  <DatePicker value={startDate} onChange={setStartDate} />
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">to</span>
+                  <DatePicker value={endDate} onChange={setEndDate} />
+                </>
+              )}
+              {mode === "month" && (
+                <>
+                  <MonthPicker value={startMonth} onChange={setStartMonth} />
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">to</span>
+                  <MonthPicker value={endMonth} onChange={setEndMonth} />
+                </>
+              )}
+              {mode === "year" && (
+                <>
+                  <YearPicker value={startYear} onChange={setStartYear} />
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">to</span>
+                  <YearPicker value={endYear} onChange={setEndYear} />
+                </>
+              )}
             </div>
           </div>
 
@@ -377,7 +366,7 @@ export default function StatisticsPage({ isGhmc = false }) {
           <div className="mt-4 pt-3 border-t border-black/5 flex items-center gap-2">
             <BarChart3 size={13} className="text-orange-400" />
             <p className="text-xs text-gray-400 font-medium">
-              Showing data for: <span className="text-orange-500 font-extrabold">{periodLabel}</span>
+              Showing data for: <span className="text-orange-500 font-extrabold">{stats.label}</span>
             </p>
           </div>
         </Card>
@@ -422,62 +411,7 @@ export default function StatisticsPage({ isGhmc = false }) {
           />
         </div>
 
-
       </div>
-
-      {/* ── Export Modal ─────────────────────────────────────────────────────── */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Export Excel Report" size="md">
-        <div className="space-y-5">
-          {/* Category Selection */}
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Select Ledgers to Include</label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: "production", label: "Production", active: "border-orange-500 text-orange-500 bg-orange-500/10" },
-                { key: "sales", label: "Sales", active: "border-emerald-500 text-emerald-500 bg-emerald-500/10" },
-                { key: "cement", label: "Cement", active: "border-amber-500 text-amber-500 bg-amber-500/10" },
-              ].map(({ key, label, active }) => {
-                const isChecked = selectedCategories[key];
-                return (
-                  <button
-                    key={key} type="button"
-                    onClick={() => setSelectedCategories(p => ({ ...p, [key]: !p[key] }))}
-                    className={cn(
-                      "p-3.5 rounded-2xl border text-xs font-bold uppercase tracking-wider text-center cursor-pointer transition-all duration-200",
-                      isChecked ? `${active} border-2` : "border-[#2d2d3d] text-gray-400 bg-transparent hover:bg-white/5"
-                    )}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">From Date</label>
-              <DatePicker value={fromDate} onChange={setFromDate} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">To Date</label>
-              <DatePicker value={toDate} onChange={setToDate} />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2 border-t border-[#2d2d3d]">
-            <Button variant="secondary" className="flex-1 justify-center py-3" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" className="flex-1 justify-center py-3" onClick={handleGenerateExcel}>
-              <Download size={14} />
-              Export Report
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </Layout>
   );
 }

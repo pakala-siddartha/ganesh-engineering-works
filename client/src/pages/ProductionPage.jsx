@@ -134,25 +134,24 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     // Sort by date ascending
     filtered.sort((a, b) => a.date.localeCompare(b.date));
 
-    const rows = [];
-    filtered.forEach((entry) => {
-      if (entry.items && entry.items.length > 0) {
-        entry.items.forEach((item) => {
-          rows.push({
-            "Date": formatDisplayDate(entry.date),
-            "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
-            "Product": item.product,
-            "Quantity": item.quantity,
-          });
-        });
-      } else {
-        rows.push({
-          "Date": formatDisplayDate(entry.date),
-          "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
-          "Product": "—",
-          "Quantity": 0,
-        });
-      }
+    const productHeaders = products.flatMap((p) => [p.cover, p.frame]);
+
+    const rows = filtered.map((entry) => {
+      const row = {
+        "Date": formatDisplayDate(entry.date),
+        "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
+      };
+
+      const itemMap = {};
+      (entry.items || []).forEach((item) => {
+        itemMap[item.product] = item.quantity;
+      });
+
+      productHeaders.forEach((prodName) => {
+        row[prodName] = itemMap[prodName] || 0;
+      });
+
+      return row;
     });
 
     const fileLabel = isGhmc ? "ghmc_production" : "production";
