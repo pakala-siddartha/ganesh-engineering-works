@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { Table, Badge } from "../components/ui/Table";
 import { ConfirmDialog } from "../components/ui/Modal";
 import { cn } from "../lib/utils";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
+import { downloadExcel } from "../utils/excelUtils";
+import { ExcelDownloadModal } from "../components/ui/ExcelDownloadModal";
 import api from "../services/api";
 
 // ── Date Picker (matches Production/Sales pages) ──────────────────────────────
@@ -96,6 +97,7 @@ export default function CementPage({ isGhmc = false }) {
   const [confirm, setConfirm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showRecents, setShowRecents] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const { data: entriesData } = useQuery({
     queryKey: ["cement", type],
@@ -103,6 +105,40 @@ export default function CementPage({ isGhmc = false }) {
   });
   const entries = entriesData?.data ?? [];
   const currentStock = computeStock(entries);
+
+  const handleDownloadExcel = (filter) => {
+    const filtered = entries.filter((entry) => {
+      const dateStr = entry.date;
+      if (filter.type === "date") {
+        return dateStr >= filter.start && dateStr <= filter.end;
+      } else if (filter.type === "month") {
+        const m = dateStr.slice(0, 7);
+        return m >= filter.start && m <= filter.end;
+      } else {
+        const y = dateStr.slice(0, 4);
+        return y >= filter.start && y <= filter.end;
+      }
+    });
+
+    if (filtered.length === 0) {
+      toast.error("No entries found in the selected range");
+      return;
+    }
+
+    // Sort by date ascending
+    filtered.sort((a, b) => a.date.localeCompare(b.date));
+
+    const rows = filtered.map((entry) => ({
+      "Date": formatDisplayDate(entry.date),
+      "Movement": entry.direction === "in" ? "Received" : "Consumed",
+      "Quantity (bags)": entry.quantity || 0,
+    }));
+
+    const fileLabel = isGhmc ? "ghmc_cement" : "cement";
+    downloadExcel(rows, `${fileLabel}_report_${filter.start}_to_${filter.end}.xlsx`, "Cement");
+    toast.success("Excel report exported successfully");
+    setShowExportModal(false);
+  };
 
   const createMutation = useMutation({
     mutationFn: (entry) => api.post("/cement", entry),
@@ -153,39 +189,7 @@ export default function CementPage({ isGhmc = false }) {
     ? { text: "text-amber-500", border: "border-amber-200", bg: "bg-amber-50/50", badge: "warning" }
     : { text: "text-emerald-600", border: "border-emerald-200", bg: "bg-emerald-50/30", badge: "success" };
 
-  const columns = [
-    {
-      key: "date", label: "Date",
-      render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span>
-    },
-    {
-      key: "direction", label: "Movement",
-      render: (r) => (
-        <Badge variant={r.direction === "in" ? "success" : "error"}>
-          {r.direction === "in" ? "Received" : "Consumed"}
-        </Badge>
-      ),
-    },
-    {
-      key: "quantity", label: "Quantity",
-      render: (r) => (
-        <span className={cn("font-extrabold text-sm", r.direction === "in" ? "text-emerald-600" : "text-red-500")}>
-          {r.direction === "in" ? "+" : "−"}{r.quantity} bags
-        </span>
-      ),
-    },
-    {
-      key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
-      render: (r) => (
-        <button
-          onClick={() => setConfirmDelete(r)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 font-bold text-xs transition-all duration-200 cursor-pointer"
-        >
-          <Trash2 size={11} className="stroke-[2.5]" /> Delete
-        </button>
-      ),
-    },
-  ];
+
 
   return (
     <Layout>
@@ -267,11 +271,11 @@ export default function CementPage({ isGhmc = false }) {
           </Card>
         </div>
 
-        {/* ── See Recents button ─────────────────────────────────────── */}
-        <div className="flex justify-center">
+        {/* ── Action Buttons (Recents + Excel Export) ─────────────────── */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => setShowRecents(true)}
-            className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer"
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
           >
             <History size={15} />
             See Recents
@@ -280,6 +284,13 @@ export default function CementPage({ isGhmc = false }) {
                 {entries.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-white text-orange-500 border border-orange-200 hover:bg-orange-50 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
+          >
+            <Download size={15} />
+            Download Excel
           </button>
         </div>
       </div>
@@ -390,6 +401,15 @@ export default function CementPage({ isGhmc = false }) {
             </div>
           </div>
         </div>
+      )}
+      {showExportModal && (
+        <ExcelDownloadModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          onDownload={handleDownloadExcel}
+          title={isGhmc ? "Export GHMC Cement" : "Export Cement"}
+          themeColor="orange"
+        />
       )}
     </Layout>
   );

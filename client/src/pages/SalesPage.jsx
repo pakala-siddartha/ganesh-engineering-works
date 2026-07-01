@@ -1,17 +1,18 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight, ChevronDown, Check, AlertTriangle } from "lucide-react";
+import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight, ChevronDown, Check, AlertTriangle, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { Table, Badge } from "../components/ui/Table";
 import { ConfirmDialog, Modal } from "../components/ui/Modal";
 import { ProductGrid } from "../components/forms/ProductGrid";
 import { DAILY_PRODUCTS, VEHICLE_OPTIONS } from "../constants/products";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
+import { downloadExcel } from "../utils/excelUtils";
+import { ExcelDownloadModal } from "../components/ui/ExcelDownloadModal";
 import api from "../services/api";
 
 // ── Date Picker ──────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [stockErrors, setStockErrors] = useState(null);
   const [showRecents, setShowRecents] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const total = Object.values(quantities).reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -141,6 +143,61 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
     queryFn: () => api.get(`/sales?type=${type}`),
   });
   const history = historyData?.data ?? [];
+
+  const handleDownloadExcel = (filter) => {
+    const filtered = history.filter((entry) => {
+      const dateStr = entry.date;
+      if (filter.type === "date") {
+        return dateStr >= filter.start && dateStr <= filter.end;
+      } else if (filter.type === "month") {
+        const m = dateStr.slice(0, 7);
+        return m >= filter.start && m <= filter.end;
+      } else {
+        const y = dateStr.slice(0, 4);
+        return y >= filter.start && y <= filter.end;
+      }
+    });
+
+    if (filtered.length === 0) {
+      toast.error("No entries found in the selected range");
+      return;
+    }
+
+    // Sort by date ascending
+    filtered.sort((a, b) => a.date.localeCompare(b.date));
+
+    const rows = [];
+    filtered.forEach((entry) => {
+      if (entry.items && entry.items.length > 0) {
+        entry.items.forEach((item) => {
+          rows.push({
+            "Date": formatDisplayDate(entry.date),
+            "Customer Name": entry.customer_name || entry.customerName || "—",
+            "Area": entry.area || "—",
+            "Vehicle": entry.vehicle || "—",
+            "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
+            "Product": item.product,
+            "Quantity": item.quantity,
+          });
+        });
+      } else {
+        rows.push({
+          "Date": formatDisplayDate(entry.date),
+          "Customer Name": entry.customer_name || entry.customerName || "—",
+          "Area": entry.area || "—",
+          "Vehicle": entry.vehicle || "—",
+          "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
+          "Product": "—",
+          "Quantity": 0,
+        });
+      }
+    });
+
+    const fileLabel = isGhmc ? "ghmc_sales" : "sales";
+    downloadExcel(rows, `${fileLabel}_report_${filter.start}_to_${filter.end}.xlsx`, "Sales");
+    toast.success("Excel report exported successfully");
+    setShowExportModal(false);
+  };
 
   const { data: prodData } = useQuery({
     queryKey: ["production", type],
@@ -259,32 +316,7 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const columns = [
-    { key: "date", label: "Date", render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span> },
-    { key: "customer_name", label: "Customer", render: (r) => <span className="font-semibold text-gray-800">{r.customer_name || r.customerName}</span> },
-    { key: "area", label: "Area", render: (r) => <span className="text-gray-500">{r.area || "—"}</span> },
-    {
-      key: "total_quantity", label: "Qty",
-      render: (r) => (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-extrabold text-xs border border-emerald-200">
-          {r.total_quantity ?? r.totalQuantity} pcs
-        </span>
-      )
-    },
-    {
-      key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
-      render: (r) => (
-        <div className="flex items-center justify-end gap-2">
-          <button onClick={() => handleEdit(r)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 font-bold text-xs transition-all duration-200 cursor-pointer">
-            <Pencil size={11} className="stroke-[2.5]" /> Edit
-          </button>
-          <button onClick={() => setConfirmDelete(r)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 font-bold text-xs transition-all duration-200 cursor-pointer">
-            <Trash2 size={11} className="stroke-[2.5]" /> Delete
-          </button>
-        </div>
-      ),
-    },
-  ];
+
 
   return (
     <Layout>
@@ -360,6 +392,7 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
               {editingEntry ? "Update Dispatch" : "Save Dispatch"}
             </Button>
             <button
+              type="button"
               onClick={() => setShowRecents(true)}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
             >
@@ -370,6 +403,14 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
                   {history.length}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-emerald-500 border border-emerald-200 hover:bg-emerald-50 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
+            >
+              <Download size={15} />
+              Download Excel
             </button>
           </div>
         </Card>
@@ -543,6 +584,15 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
             </div>
           </div>
         </div>
+      )}
+      {showExportModal && (
+        <ExcelDownloadModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          onDownload={handleDownloadExcel}
+          title={isGhmc ? "Export GHMC Sales" : "Export Sales"}
+          themeColor="emerald"
+        />
       )}
     </Layout>
   );

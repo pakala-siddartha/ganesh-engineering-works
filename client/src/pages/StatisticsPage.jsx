@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, TrendingUp, ShoppingCart, Package, Calendar, CalendarDays, CalendarRange, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
@@ -9,13 +9,30 @@ import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { cn } from "../lib/utils";
 import { formatDateInput, formatDisplayDate, getCurrentMonthValue } from "../utils/dateUtils";
-import { downloadCsv } from "../utils/csvUtils";
+import { downloadExcel } from "../utils/excelUtils";
 import api from "../services/api";
+
+// ── Shared popup position helper ────────────────────────────────────────────
+function getPopupStyle(triggerEl, popupW, popupH) {
+  if (!triggerEl) return { position: "fixed", top: 100, left: 100, width: popupW, zIndex: 9999 };
+  const rect = triggerEl.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const MARGIN = 8;
+  let top = rect.bottom + MARGIN;
+  let left = rect.left;
+  if (top + popupH > vh - MARGIN) top = rect.top - popupH - MARGIN;
+  if (left + popupW > vw - MARGIN) left = vw - popupW - MARGIN;
+  if (left < MARGIN) left = MARGIN;
+  return { position: "fixed", top, left, width: popupW, zIndex: 9999 };
+}
 
 // ── Date Picker ───────────────────────────────────────────────────────────────
 function DatePicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(value ? new Date(value + "T00:00:00") : new Date());
+  const [calStyle, setCalStyle] = useState({});
+  const triggerRef = useRef(null);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -23,6 +40,11 @@ function DatePicker({ value, onChange }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const allDays = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const openCalendar = () => {
+    setCalStyle(getPopupStyle(triggerRef.current, 288, 290));
+    setIsOpen(true);
+  };
 
   const pick = (day) => {
     onChange(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
@@ -35,7 +57,7 @@ function DatePicker({ value, onChange }) {
 
   return (
     <div className="relative w-full sm:w-auto">
-      <div onClick={() => setIsOpen(!isOpen)} className="relative flex items-center cursor-pointer select-none">
+      <div ref={triggerRef} onClick={openCalendar} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={formatDisplayDate(value)}
           className="w-full sm:w-44 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all duration-200 cursor-pointer hover:border-black/20"
         />
@@ -43,14 +65,17 @@ function DatePicker({ value, onChange }) {
       </div>
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white border border-black/8 rounded-2xl shadow-xl p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
+          <div
+            style={calStyle}
+            className="bg-white border border-black/10 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200"
+          >
             <div className="flex items-center justify-between mb-3">
-              <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(year, month - 1, 1)); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
               <span className="text-sm font-extrabold text-gray-800">{monthNames[month]} {year}</span>
-              <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronRight size={16} /></button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); setViewDate(new Date(year, month + 1, 1)); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronRight size={16} /></button>
             </div>
-            <div className="grid grid-cols-7 gap-1 mb-1 text-center">
+            <div className="grid grid-cols-7 gap-1 mb-2 text-center">
               {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
                 <span key={d} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{d}</span>
               ))}
@@ -60,9 +85,111 @@ function DatePicker({ value, onChange }) {
                 if (!day) return <span key={`b-${idx}`} />;
                 const isSel = day === selDay && month === selMonth && year === selYear;
                 return (
-                  <button key={day} type="button" onClick={() => pick(day)}
-                    className={`py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${isSel ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"}`}>
+                  <button key={day} type="button" onClick={(e) => { e.stopPropagation(); pick(day); }}
+                    className={`py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer ${isSel ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"}`}>
                     {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Month Picker ─────────────────────────────────────────────────────────────
+// value format: "YYYY-MM"
+function MonthPicker({ value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewYear, setViewYear] = useState(value ? parseInt(value.split("-")[0]) : new Date().getFullYear());
+  const [popStyle, setPopStyle] = useState({});
+  const triggerRef = useRef(null);
+
+  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONTH_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const selYear  = value ? parseInt(value.split("-")[0]) : null;
+  const selMonth = value ? parseInt(value.split("-")[1]) - 1 : null;
+  const displayLabel = value ? `${MONTH_FULL[selMonth]} ${selYear}` : "Select Month";
+
+  const open = () => { setPopStyle(getPopupStyle(triggerRef.current, 280, 240)); setIsOpen(true); };
+  const pick = (mIdx) => { onChange(`${viewYear}-${String(mIdx + 1).padStart(2, "0")}`); setIsOpen(false); };
+
+  return (
+    <div className="relative w-full sm:w-auto">
+      <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
+        <input type="text" readOnly value={displayLabel}
+          className="w-full sm:w-48 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+        />
+        <CalendarDays size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
+      </div>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
+          <div style={popStyle} className="bg-white border border-black/10 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <button type="button" onClick={(e) => { e.stopPropagation(); setViewYear(y => y - 1); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
+              <span className="text-sm font-extrabold text-gray-800">{viewYear}</span>
+              <button type="button" onClick={(e) => { e.stopPropagation(); setViewYear(y => y + 1); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronRight size={16} /></button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {MONTH_NAMES.map((name, mIdx) => {
+                const isSel = mIdx === selMonth && viewYear === selYear;
+                return (
+                  <button key={name} type="button" onClick={(e) => { e.stopPropagation(); pick(mIdx); }}
+                    className={`py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${isSel ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"}`}>
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Year Picker ───────────────────────────────────────────────────────────────
+// value format: "YYYY"
+function YearPicker({ value, onChange }) {
+  const currentYear = new Date().getFullYear();
+  const [startYear, setStartYear] = useState(currentYear - 4);
+  const [isOpen, setIsOpen] = useState(false);
+  const [popStyle, setPopStyle] = useState({});
+  const triggerRef = useRef(null);
+
+  const ROWS = 3; const COLS = 4;
+  const years = Array.from({ length: ROWS * COLS }, (_, i) => startYear + i);
+
+  const open = () => { setPopStyle(getPopupStyle(triggerRef.current, 280, 235)); setIsOpen(true); };
+
+  return (
+    <div className="relative w-full sm:w-auto">
+      <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
+        <input type="text" readOnly value={value ?? "Select Year"}
+          className="w-full sm:w-48 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+        />
+        <CalendarRange size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
+      </div>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setIsOpen(false)} />
+          <div style={popStyle} className="bg-white border border-black/10 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <button type="button" onClick={(e) => { e.stopPropagation(); setStartYear(y => y - ROWS * COLS); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
+              <span className="text-sm font-extrabold text-gray-800">{startYear} – {startYear + ROWS * COLS - 1}</span>
+              <button type="button" onClick={(e) => { e.stopPropagation(); setStartYear(y => y + ROWS * COLS); }} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors cursor-pointer"><ChevronRight size={16} /></button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {years.map(yr => {
+                const isSel = String(yr) === value;
+                return (
+                  <button key={yr} type="button" onClick={(e) => { e.stopPropagation(); onChange(String(yr)); setIsOpen(false); }}
+                    className={`py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${isSel ? "bg-orange-500 text-white shadow-sm" : "hover:bg-orange-50 hover:text-orange-600 text-gray-700"}`}>
+                    {yr}
                   </button>
                 );
               })}
@@ -162,9 +289,9 @@ export default function StatisticsPage({ isGhmc = false }) {
     };
   }, [mode, dateVal, monthVal, yearVal, prodEntries, salesEntries, cementEntries]);
 
-  const yearOptions = Array.from({ length: 6 }, (_, i) => String(new Date().getFullYear() - 2 + i));
 
-  const handleGenerateCsv = () => {
+
+  const handleGenerateExcel = () => {
     if (!selectedCategories.production && !selectedCategories.sales && !selectedCategories.cement) {
       toast.error("Select at least one ledger category");
       return;
@@ -174,7 +301,6 @@ export default function StatisticsPage({ isGhmc = false }) {
     if (end < start) { toast.error("End date must be after start date"); return; }
 
     const rows = [];
-    // Use real data instead of mock
     if (selectedCategories.production) {
       prodEntries
         .filter(e => e.date >= fromDate && e.date <= toDate)
@@ -192,7 +318,7 @@ export default function StatisticsPage({ isGhmc = false }) {
     }
 
     if (rows.length === 0) { toast.error("No data found in selected date range"); return; }
-    downloadCsv(rows, `report_${fromDate}_to_${toDate}.csv`);
+    downloadExcel(rows, `report_${fromDate}_to_${toDate}.xlsx`, "Statistics");
     toast.success(`Report exported — ${rows.length} records`);
     setIsModalOpen(false);
   };
@@ -232,21 +358,8 @@ export default function StatisticsPage({ isGhmc = false }) {
             {/* Picker + Export */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {mode === "date" && <DatePicker value={dateVal} onChange={setDateVal} />}
-              {mode === "month" && (
-                <input
-                  type="month" value={monthVal}
-                  onChange={(e) => setMonthVal(e.target.value)}
-                  className="bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all"
-                />
-              )}
-              {mode === "year" && (
-                <select
-                  value={yearVal} onChange={(e) => setYearVal(e.target.value)}
-                  className="bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all appearance-none"
-                >
-                  {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              )}
+              {mode === "month" && <MonthPicker value={monthVal} onChange={setMonthVal} />}
+              {mode === "year"  && <YearPicker  value={yearVal}  onChange={setYearVal} />}
 
               <Button
                 variant="secondary"
@@ -255,7 +368,7 @@ export default function StatisticsPage({ isGhmc = false }) {
                 onClick={() => setIsModalOpen(true)}
               >
                 <Download size={13} />
-                Export CSV
+                Export Excel
               </Button>
             </div>
           </div>
@@ -309,33 +422,11 @@ export default function StatisticsPage({ isGhmc = false }) {
           />
         </div>
 
-        {/* ── Summary Card ─────────────────────────────────────────── */}
-        <Card>
-          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
-            <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
-              <BarChart3 size={16} className="text-orange-500" />
-            </div>
-            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Period Summary</h3>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: "Net Stock Remaining", value: Math.max(0, stats.production - stats.sales), color: "text-violet-600", bg: "bg-violet-50 border-violet-100", desc: "Production − Sales" },
-              { label: "Cement Balance", value: Math.max(0, stats.cementIn - stats.cementUsed), color: "text-sky-600", bg: "bg-sky-50 border-sky-100", desc: "Received − Consumed" },
-              { label: "Sales Efficiency", value: stats.production > 0 ? `${Math.round((stats.sales / stats.production) * 100)}%` : "—", color: "text-orange-600", bg: "bg-orange-50 border-orange-100", desc: "Sales ÷ Production" },
-            ].map(({ label, value, color, bg, desc }) => (
-              <div key={label} className={cn("rounded-2xl border p-4", bg)}>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{label}</p>
-                <p className={cn("text-2xl font-black tracking-tight", color)}>{value}</p>
-                <p className="text-[10px] text-gray-400 font-medium mt-1">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
       </div>
 
       {/* ── Export Modal ─────────────────────────────────────────────────────── */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Export CSV Report" size="md">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Export Excel Report" size="md">
         <div className="space-y-5">
           {/* Category Selection */}
           <div>
@@ -380,7 +471,7 @@ export default function StatisticsPage({ isGhmc = false }) {
             <Button variant="secondary" className="flex-1 justify-center py-3" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" className="flex-1 justify-center py-3" onClick={handleGenerateCsv}>
+            <Button variant="primary" className="flex-1 justify-center py-3" onClick={handleGenerateExcel}>
               <Download size={14} />
               Export Report
             </Button>

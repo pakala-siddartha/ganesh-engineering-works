@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { Package } from "lucide-react";
+import { Package, Download, RefreshCw } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Table";
 import { cn } from "../lib/utils";
 import { DAILY_PRODUCTS } from "../constants/products";
-import { downloadCsv } from "../utils/csvUtils";
+import { downloadExcel } from "../utils/excelUtils";
 import { Button } from "../components/ui/Button";
-import { Download, RefreshCw } from "lucide-react";
 import api from "../services/api";
 
 // ── Build per-product stock from production and sales entry items ──────────
@@ -193,13 +192,14 @@ export default function StockPage({ isGhmc = false, products = DAILY_PRODUCTS })
                 variant="secondary"
                 size="sm"
                 className="gap-1.5 text-xs"
-                onClick={() => downloadCsv(
+                onClick={() => downloadExcel(
                   stock.map((i) => ({ Product: i.product, Covers: i.coverStock, Frames: i.frameStock, Total: i.coverStock + i.frameStock })),
-                  "stock.csv"
+                  isGhmc ? "ghmc_stock.xlsx" : "stock.xlsx",
+                  "Stock"
                 )}
               >
                 <Download size={13} />
-                Export
+                Export Excel
               </Button>
             </div>
           </div>

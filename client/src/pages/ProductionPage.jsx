@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
-import { Table, Badge } from "../components/ui/Table";
 import { ConfirmDialog } from "../components/ui/Modal";
 import { ProductGrid } from "../components/forms/ProductGrid";
 import { DAILY_PRODUCTS } from "../constants/products";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
+import { downloadExcel } from "../utils/excelUtils";
+import { ExcelDownloadModal } from "../components/ui/ExcelDownloadModal";
 import api from "../services/api";
 
 // ── Shared date picker ───────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showRecents, setShowRecents] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const total = Object.values(quantities).reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -109,6 +111,55 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     queryFn: () => api.get(`/production?type=${type}`),
   });
   const history = historyData?.data ?? [];
+
+  const handleDownloadExcel = (filter) => {
+    const filtered = history.filter((entry) => {
+      const dateStr = entry.date;
+      if (filter.type === "date") {
+        return dateStr >= filter.start && dateStr <= filter.end;
+      } else if (filter.type === "month") {
+        const m = dateStr.slice(0, 7);
+        return m >= filter.start && m <= filter.end;
+      } else {
+        const y = dateStr.slice(0, 4);
+        return y >= filter.start && y <= filter.end;
+      }
+    });
+
+    if (filtered.length === 0) {
+      toast.error("No entries found in the selected range");
+      return;
+    }
+
+    // Sort by date ascending
+    filtered.sort((a, b) => a.date.localeCompare(b.date));
+
+    const rows = [];
+    filtered.forEach((entry) => {
+      if (entry.items && entry.items.length > 0) {
+        entry.items.forEach((item) => {
+          rows.push({
+            "Date": formatDisplayDate(entry.date),
+            "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
+            "Product": item.product,
+            "Quantity": item.quantity,
+          });
+        });
+      } else {
+        rows.push({
+          "Date": formatDisplayDate(entry.date),
+          "Total Quantity (pcs)": entry.total_quantity || entry.totalQuantity || 0,
+          "Product": "—",
+          "Quantity": 0,
+        });
+      }
+    });
+
+    const fileLabel = isGhmc ? "ghmc_production" : "production";
+    downloadExcel(rows, `${fileLabel}_report_${filter.start}_to_${filter.end}.xlsx`, "Production");
+    toast.success("Excel report exported successfully");
+    setShowExportModal(false);
+  };
 
   const createMutation = useMutation({
     mutationFn: (entry) => api.post("/production", entry),
@@ -191,60 +242,6 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // Helper: render product items as compact badges
-  function renderItems(r) {
-    const items = r.items || [];
-    if (items.length === 0) return <span className="text-gray-400 text-xs italic">—</span>;
-    return (
-      <div className="flex flex-wrap gap-1">
-        {items.map((item, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-gray-100 text-gray-700 text-[10px] font-semibold border border-black/5 whitespace-nowrap"
-          >
-            {item.product}: <span className="text-orange-600 font-extrabold ml-1">{item.quantity}</span>
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  const recentHistory = history.slice(0, 10);
-
-  const columns = [
-    { key: "date", label: "Date", render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span> },
-    {
-      key: "total_quantity", label: "Total Qty",
-      render: (r) => (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-orange-600 font-extrabold text-xs border border-orange-200">
-          {r.total_quantity ?? r.totalQuantity} pcs
-        </span>
-      )
-    },
-    {
-      key: "products", label: "Products",
-      render: (r) => renderItems(r),
-    },
-    {
-      key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
-      render: (r) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => handleEdit(r)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 font-bold text-xs transition-all duration-200 cursor-pointer"
-          >
-            <Pencil size={11} className="stroke-[2.5]" /> Edit
-          </button>
-          <button
-            onClick={() => setConfirmDelete(r)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 font-bold text-xs transition-all duration-200 cursor-pointer"
-          >
-            <Trash2 size={11} className="stroke-[2.5]" /> Delete
-          </button>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <Layout>
@@ -287,7 +284,7 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
           {/* Product grid */}
           <ProductGrid products={products} quantities={quantities} onChange={(k, v) => setQuantities(p => ({ ...p, [k]: v }))} />
 
-          {/* Save + See Recents buttons */}
+          {/* Save + See Recents + Download Excel buttons */}
           <div className="mt-6 pt-5 border-t border-black/5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               variant="primary"
@@ -300,6 +297,7 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
               {editingEntry ? "Update Entry" : "Save Production"}
             </Button>
             <button
+              type="button"
               onClick={() => setShowRecents(true)}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
             >
@@ -310,6 +308,14 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
                   {history.length}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-orange-500 border border-orange-200 hover:bg-orange-50 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
+            >
+              <Download size={15} />
+              Download Excel
             </button>
           </div>
         </Card>
@@ -426,6 +432,15 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
             </div>
           </div>
         </div>
+      )}
+      {showExportModal && (
+        <ExcelDownloadModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          onDownload={handleDownloadExcel}
+          title={isGhmc ? "Export GHMC Production" : "Export Production"}
+          themeColor="orange"
+        />
       )}
     </Layout>
   );
