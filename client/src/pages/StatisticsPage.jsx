@@ -52,10 +52,10 @@ function DatePicker({ value, onChange }) {
   const selYear = value ? parseInt(value.split("-")[0]) : null;
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className="relative flex-1 sm:flex-initial">
       <div ref={triggerRef} onClick={openCalendar} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={formatDisplayDate(value)}
-          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all duration-200 cursor-pointer hover:border-black/20"
+          className="w-full sm:w-36 md:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 text-xs font-semibold text-gray-800 focus:outline-none focus:bg-white focus:border-orange-400 transition-all duration-200 cursor-pointer hover:border-black/20"
         />
         <Calendar size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -113,10 +113,10 @@ function MonthPicker({ value, onChange }) {
   const pick = (mIdx) => { onChange(`${viewYear}-${String(mIdx + 1).padStart(2, "0")}`); setIsOpen(false); };
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className="relative flex-1 sm:flex-initial">
       <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={displayLabel}
-          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+          className="w-full sm:w-36 md:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
         />
         <CalendarDays size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -161,10 +161,10 @@ function YearPicker({ value, onChange }) {
   const open = () => { setPopStyle(getPopupStyle(triggerRef.current, 280, 235)); setIsOpen(true); };
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className="relative flex-1 sm:flex-initial">
       <div ref={triggerRef} onClick={open} className="relative flex items-center cursor-pointer select-none">
         <input type="text" readOnly value={value ?? "Select Year"}
-          className="w-full sm:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
+          className="w-full sm:w-36 md:w-40 bg-[#f5f5f7] border border-black/10 rounded-xl px-4 py-2 pl-10 text-xs font-semibold text-gray-800 focus:outline-none cursor-pointer hover:border-black/20 transition-all duration-200"
         />
         <CalendarRange size={14} className="absolute left-3.5 text-orange-500 pointer-events-none" />
       </div>
@@ -337,7 +337,7 @@ export default function StatisticsPage({ isGhmc = false }) {
             </div>
 
             {/* Picker ranges */}
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-row items-center justify-between gap-2 w-full sm:w-auto">
               {mode === "date" && (
                 <>
                   <DatePicker value={startDate} onChange={setStartDate} />
