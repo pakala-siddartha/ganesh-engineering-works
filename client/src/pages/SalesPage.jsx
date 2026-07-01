@@ -131,6 +131,7 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [stockErrors, setStockErrors] = useState(null);
+  const [showRecents, setShowRecents] = useState(false);
 
   const total = Object.values(quantities).reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -346,8 +347,8 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
             />
           </div>
 
-          {/* Save button */}
-          <div className="mt-6 pt-5 border-t border-black/5 flex justify-center">
+          {/* Save + See Recents */}
+          <div className="mt-6 pt-5 border-t border-black/5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               variant="success"
               size="lg"
@@ -358,19 +359,19 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
               <Save size={16} />
               {editingEntry ? "Update Dispatch" : "Save Dispatch"}
             </Button>
+            <button
+              onClick={() => setShowRecents(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
+            >
+              <History size={15} />
+              See Recents
+              {history.length > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-extrabold">
+                  {history.length}
+                </span>
+              )}
+            </button>
           </div>
-        </Card>
-
-        {/* ── History Card ──────────────────────────────────────────── */}
-        <Card>
-          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
-            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-              <History size={16} className="text-emerald-500" />
-            </div>
-            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Dispatch History</h3>
-            <Badge variant="success">{history.length}</Badge>
-          </div>
-          <Table columns={columns} data={history} emptyMessage="No dispatch entries yet" />
         </Card>
       </div>
 
@@ -445,6 +446,104 @@ export default function SalesPage({ isGhmc = false, products = DAILY_PRODUCTS })
           </Button>
         </div>
       </Modal>
+
+      {/* ── Recents Modal ─────────────────────────────────────────── */}
+      {showRecents && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowRecents(false)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-250"
+            style={{ maxHeight: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-black/5 bg-white">
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                <History size={18} className="text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-gray-900 leading-tight">
+                  {isGhmc ? "GHMC " : ""}Dispatch History
+                </h2>
+                <p className="text-[11px] text-gray-400 font-medium">{history.length} entries</p>
+              </div>
+              <button
+                onClick={() => setShowRecents(false)}
+                className="ml-auto w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="overflow-y-auto px-4 py-4 space-y-3" style={{ maxHeight: "calc(90vh - 72px)" }}>
+              {history.length === 0 ? (
+                <p className="text-center text-gray-400 italic text-sm py-12">No dispatch entries yet.</p>
+              ) : (
+                history.map((entry, idx) => (
+                  <div
+                    key={entry.id || idx}
+                    className="bg-white border border-black/8 rounded-2xl overflow-hidden shadow-sm"
+                  >
+                    {/* Card Header — date + total */}
+                    <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-extrabold text-gray-900 tracking-tight">
+                          {formatDisplayDate(entry.date)}
+                        </span>
+                        <span className="text-sm font-extrabold text-emerald-700 bg-white px-3 py-1 rounded-full border border-emerald-200">
+                          {entry.total_quantity ?? entry.totalQuantity} pcs
+                        </span>
+                      </div>
+                      {/* Customer / Area / Vehicle */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5">
+                        <span className="text-sm font-bold text-gray-800">{entry.customer_name || entry.customerName}</span>
+                        {entry.area && <span className="text-xs text-gray-500">· {entry.area}</span>}
+                        {entry.vehicle && <span className="text-xs text-gray-500">· {entry.vehicle}</span>}
+                      </div>
+                    </div>
+
+                    {/* Product rows */}
+                    <div className="px-4 py-2">
+                      {(entry.items || []).length > 0 ? (
+                        <div className="divide-y divide-black/4">
+                          {(entry.items || []).map((item, i) => (
+                            <div key={i} className="flex items-center justify-between py-2.5">
+                              <span className="text-sm font-semibold text-gray-700 flex-1 pr-2">{item.product}</span>
+                              <span className="text-sm font-extrabold text-emerald-600 whitespace-nowrap">{item.quantity} pcs</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm italic py-2">No product details</p>
+                      )}
+                    </div>
+
+                    {/* Action buttons — full width, easy to tap */}
+                    <div className="grid grid-cols-2 border-t border-black/5">
+                      <button
+                        onClick={() => { handleEdit(entry); setShowRecents(false); }}
+                        className="flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border-r border-black/5 transition-colors cursor-pointer"
+                      >
+                        <Pencil size={14} className="stroke-[2.5]" /> Edit
+                      </button>
+                      <button
+                        onClick={() => { setConfirmDelete(entry); setShowRecents(false); }}
+                        className="flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={14} className="stroke-[2.5]" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

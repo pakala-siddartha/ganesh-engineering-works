@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Minus, History, Trash2, Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
@@ -95,6 +95,7 @@ export default function CementPage({ isGhmc = false }) {
   const [usedQty, setUsedQty] = useState("");
   const [confirm, setConfirm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showRecents, setShowRecents] = useState(false);
 
   const { data: entriesData } = useQuery({
     queryKey: ["cement", type],
@@ -266,17 +267,21 @@ export default function CementPage({ isGhmc = false }) {
           </Card>
         </div>
 
-        {/* ── Ledger history ─────────────────────────────────────────── */}
-        <Card>
-          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
-            <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
-              <History size={16} className="text-orange-500" />
-            </div>
-            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Ledger History</h3>
-            <Badge variant="orange">{entries.length}</Badge>
-          </div>
-          <Table columns={columns} data={entries} emptyMessage="No cement movements yet" />
-        </Card>
+        {/* ── See Recents button ─────────────────────────────────────── */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowRecents(true)}
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer"
+          >
+            <History size={15} />
+            See Recents
+            {entries.length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[10px] font-extrabold">
+                {entries.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -304,6 +309,88 @@ export default function CementPage({ isGhmc = false }) {
         confirmVariant="danger"
         loading={deleteMutation.isPending}
       />
+
+      {/* ── Recents Modal ─────────────────────────────────────────── */}
+      {showRecents && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowRecents(false)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-250"
+            style={{ maxHeight: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-black/5 bg-white">
+              <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
+                <History size={18} className="text-orange-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-gray-900 leading-tight">
+                  {isGhmc ? "GHMC " : ""}Cement Ledger
+                </h2>
+                <p className="text-[11px] text-gray-400 font-medium">{entries.length} entries</p>
+              </div>
+              <button
+                onClick={() => setShowRecents(false)}
+                className="ml-auto w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="overflow-y-auto px-4 py-4 space-y-3" style={{ maxHeight: "calc(90vh - 72px)" }}>
+              {entries.length === 0 ? (
+                <p className="text-center text-gray-400 italic text-sm py-12">No cement entries yet.</p>
+              ) : (
+                entries.map((entry, idx) => {
+                  const isIn = entry.direction === "in";
+                  return (
+                    <div
+                      key={entry.id || idx}
+                      className="bg-white border border-black/8 rounded-2xl overflow-hidden shadow-sm"
+                    >
+                      {/* Card Header — colored by direction */}
+                      <div className={cn(
+                        "flex items-center justify-between px-4 py-3 border-b",
+                        isIn ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"
+                      )}>
+                        <span className="text-base font-extrabold text-gray-900 tracking-tight">
+                          {formatDisplayDate(entry.date)}
+                        </span>
+                        <Badge variant={isIn ? "success" : "error"}>
+                          {isIn ? "Received" : "Consumed"}
+                        </Badge>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="flex items-center justify-center py-5">
+                        <span className={cn("text-4xl font-black tracking-tight", isIn ? "text-emerald-600" : "text-red-500")}>
+                          {isIn ? "+" : "−"}{entry.quantity}
+                        </span>
+                        <span className="text-lg font-bold text-gray-400 ml-2 mt-1">bags</span>
+                      </div>
+
+                      {/* Delete button — full width */}
+                      <div className="border-t border-black/5">
+                        <button
+                          onClick={() => { setConfirmDelete(entry); setShowRecents(false); }}
+                          className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={14} className="stroke-[2.5]" /> Delete Entry
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

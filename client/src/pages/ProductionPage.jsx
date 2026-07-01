@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Save, History, Pencil, Trash2, X, Calendar, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { Layout } from "../components/layout/Layout";
 import { Header } from "../components/layout/Header";
@@ -100,6 +100,7 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
   const [editingEntry, setEditingEntry] = useState(null);
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showRecents, setShowRecents] = useState(false);
 
   const total = Object.values(quantities).reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -190,6 +191,26 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // Helper: render product items as compact badges
+  function renderItems(r) {
+    const items = r.items || [];
+    if (items.length === 0) return <span className="text-gray-400 text-xs italic">—</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((item, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center px-2 py-0.5 rounded-lg bg-gray-100 text-gray-700 text-[10px] font-semibold border border-black/5 whitespace-nowrap"
+          >
+            {item.product}: <span className="text-orange-600 font-extrabold ml-1">{item.quantity}</span>
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const recentHistory = history.slice(0, 10);
+
   const columns = [
     { key: "date", label: "Date", render: (r) => <span className="font-semibold text-gray-700">{formatDisplayDate(r.date)}</span> },
     {
@@ -199,6 +220,10 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
           {r.total_quantity ?? r.totalQuantity} pcs
         </span>
       )
+    },
+    {
+      key: "products", label: "Products",
+      render: (r) => renderItems(r),
     },
     {
       key: "actions", label: "Actions", className: "text-right", cellClassName: "text-right",
@@ -262,8 +287,8 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
           {/* Product grid */}
           <ProductGrid products={products} quantities={quantities} onChange={(k, v) => setQuantities(p => ({ ...p, [k]: v }))} />
 
-          {/* Save button */}
-          <div className="mt-6 pt-5 border-t border-black/5 flex justify-center">
+          {/* Save + See Recents buttons */}
+          <div className="mt-6 pt-5 border-t border-black/5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               variant="primary"
               size="lg"
@@ -274,20 +299,21 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
               <Save size={16} />
               {editingEntry ? "Update Entry" : "Save Production"}
             </Button>
+            <button
+              onClick={() => setShowRecents(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 text-gray-700 border border-black/8 hover:bg-gray-200 font-bold text-sm transition-all duration-150 cursor-pointer w-full sm:w-auto justify-center"
+            >
+              <History size={15} />
+              See Recents
+              {history.length > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[10px] font-extrabold">
+                  {history.length}
+                </span>
+              )}
+            </button>
           </div>
         </Card>
 
-        {/* ── History Card ──────────────────────────────────────────── */}
-        <Card>
-          <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-black/5">
-            <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
-              <History size={16} className="text-orange-500" />
-            </div>
-            <h3 className="text-sm font-extrabold text-gray-800 tracking-tight">Recent Entries</h3>
-            <Badge variant="orange">{history.length}</Badge>
-          </div>
-          <Table columns={columns} data={history} emptyMessage="No production entries yet" />
-        </Card>
       </div>
 
       <ConfirmDialog
@@ -311,6 +337,96 @@ export default function ProductionPage({ isGhmc = false, products = DAILY_PRODUC
         loading={deleteMutation.isPending}
         details={confirmDelete ? [`Date: ${formatDisplayDate(confirmDelete.date)}`, `Total: ${confirmDelete.total_quantity ?? confirmDelete.totalQuantity} pieces`] : []}
       />
+
+      {/* ── Recents Modal ─────────────────────────────────────────── */}
+      {showRecents && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowRecents(false)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95 duration-250"
+            style={{ maxHeight: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-black/5 bg-white">
+              <div className="p-2 rounded-xl bg-orange-50 border border-orange-100">
+                <History size={18} className="text-orange-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-gray-900 leading-tight">
+                  {isGhmc ? "GHMC " : ""}Production History
+                </h2>
+                <p className="text-[11px] text-gray-400 font-medium">{history.length} entries</p>
+              </div>
+              <button
+                onClick={() => setShowRecents(false)}
+                className="ml-auto w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="overflow-y-auto px-4 py-4 space-y-3" style={{ maxHeight: "calc(90vh - 72px)" }}>
+              {history.length === 0 ? (
+                <p className="text-center text-gray-400 italic text-sm py-12">No production entries yet.</p>
+              ) : (
+                history.map((entry, idx) => (
+                  <div
+                    key={entry.id || idx}
+                    className="bg-white border border-black/8 rounded-2xl overflow-hidden shadow-sm"
+                  >
+                    {/* Card Header — date + total */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-orange-50 border-b border-orange-100">
+                      <span className="text-base font-extrabold text-gray-900 tracking-tight">
+                        {formatDisplayDate(entry.date)}
+                      </span>
+                      <span className="text-sm font-extrabold text-orange-600 bg-white px-3 py-1 rounded-full border border-orange-200">
+                        {entry.total_quantity ?? entry.totalQuantity} pcs
+                      </span>
+                    </div>
+
+                    {/* Product rows */}
+                    <div className="px-4 py-2">
+                      {(entry.items || []).length > 0 ? (
+                        <div className="divide-y divide-black/4">
+                          {(entry.items || []).map((item, i) => (
+                            <div key={i} className="flex items-center justify-between py-2.5">
+                              <span className="text-sm font-semibold text-gray-700 flex-1 pr-2">{item.product}</span>
+                              <span className="text-sm font-extrabold text-orange-600 whitespace-nowrap">{item.quantity} pcs</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm italic py-2">No product details</p>
+                      )}
+                    </div>
+
+                    {/* Action buttons — full width, easy to tap */}
+                    <div className="grid grid-cols-2 border-t border-black/5">
+                      <button
+                        onClick={() => { handleEdit(entry); setShowRecents(false); }}
+                        className="flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border-r border-black/5 transition-colors cursor-pointer"
+                      >
+                        <Pencil size={14} className="stroke-[2.5]" /> Edit
+                      </button>
+                      <button
+                        onClick={() => { setConfirmDelete(entry); setShowRecents(false); }}
+                        className="flex items-center justify-center gap-2 py-3.5 text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={14} className="stroke-[2.5]" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

@@ -7,9 +7,9 @@ const SESSION_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 function getStoredSession() {
   try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY));
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY));
   } catch {
-    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     return null;
   }
 }
@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     // Demo password — will be replaced with Supabase Auth
     if (password !== "1234") return false;
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       SESSION_KEY,
       JSON.stringify({
         loggedInAt: Date.now(),
@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     setIsAuthenticated(false);
   }, []);
 
