@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { ConfirmDialog } from "../components/ui/Modal";
+import { Badge } from "../components/ui/Table";
 import { cn } from "../lib/utils";
 import { formatDateInput, formatDisplayDate } from "../utils/dateUtils";
 import { downloadExcel } from "../utils/excelUtils";
