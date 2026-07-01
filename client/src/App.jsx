@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { WakeUpBanner } from "./components/ui/WakeUpBanner";
 import { ROUTES } from "./constants/routes";
 
 // Pages
@@ -141,6 +142,9 @@ export default function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           </Routes>
+
+          {/* Cold-start wake-up banner */}
+          <WakeUpBanner />
 
           {/* Toast notifications */}
           <Toaster
